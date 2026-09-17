@@ -1,9 +1,9 @@
 [Unit]
-Description=Run Wikidot search synchronization every 30 minutes
+Description=Run Wikidot manifest scan every 10 minutes
 
 [Timer]
 OnBootSec=5min
-OnUnitActiveSec=30min
+OnUnitActiveSec=10min
 Persistent=true
 Unit=wymbot-search-sync.service
 

@@ -120,9 +120,9 @@ FTML 指 Wikidot wiki 源码，HTML 指展开模块后的渲染结果。源码�
 | 类别 | 判据 | 刷新策略 |
 | --- | --- | --- |
 | static | 源码已取得且无动态特征、无未解析依赖 | 自身修订触发，外加滚动抽检 |
-| dynamic-listpages | 直接包含 ListPages | 独立 TTL，默认 15 分钟 |
-| dynamic-transitive | include/有效模板间接引入动态内容 | TTL，并接受依赖变化触发 |
-| dynamic-other | 其他列表、评论、评分、随机、日期或外部数据影响正文 | 可配置 TTL，默认 30 分钟 |
+| dynamic-listpages | 直接包含 ListPages | 独立 TTL，默认 30 分钟 |
+| dynamic-transitive | include/有效模板间接引入动态内容 | TTL，默认 30 分钟，并接受依赖变化触发 |
+| dynamic-other | 其他列表、评论、评分、随机、日期或外部数据影响正文 | 可配置 TTL，默认 60 分钟 |
 | unknown | 源码失败、未知指令、参数化 include、模板未解析 | 默认 60 分钟，不允许归为 static |
 
 一期最小 include 支持：

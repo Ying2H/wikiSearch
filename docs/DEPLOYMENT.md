@@ -56,7 +56,7 @@ systemctl list-timers wymbot-search-sync.timer
 journalctl -u wymbot-search-sync.service -n 100 --no-pager
 ```
 
-定时器开机后约 5 分钟首次运行，之后每轮完成后间隔 30 分钟。`data/pipeline.lock` 防止上一轮尚未结束时并发抓取。目标站请求间隔默认 2 秒，可通过 systemd unit 中的环境变量调整。
+定时器开机后约 5 分钟首次运行，之后每轮完成后间隔 10 分钟，因此 `/pagelist` 清单约每 10 分钟确认一次。带有 `ListPages` 的页面通过 1800 秒 TTL 约每 30 分钟复核一次；间接依赖页面同样按 30 分钟处理，其他动态页面默认 60 分钟。`data/pipeline.lock` 防止上一轮尚未结束时并发抓取。目标站请求间隔默认 2 秒，可通过 systemd unit 中的环境变量调整。
 
 ## 回滚与故障处理
 

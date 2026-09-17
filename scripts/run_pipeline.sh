@@ -10,6 +10,10 @@ MANIFEST_PATH="${MANIFEST_PATH:-/pagelist}"
 SCAN_PAGES="${SCAN_PAGES:-2}"
 WORKER_LIMIT="${WORKER_LIMIT:-200}"
 MIN_INTERVAL="${MIN_INTERVAL:-2}"
+LISTPAGES_TTL="${LISTPAGES_TTL:-1800}"
+TRANSITIVE_TTL="${TRANSITIVE_TTL:-1800}"
+OTHER_DYNAMIC_TTL="${OTHER_DYNAMIC_TTL:-3600}"
+UNKNOWN_TTL="${UNKNOWN_TTL:-3600}"
 DB_PATH="${DB_PATH:-data/target.sqlite3}"
 CACHE_DIR="${CACHE_DIR:-data/target-cache}"
 SNAPSHOT_DIR="${SNAPSHOT_DIR:-data/build-input}"
@@ -55,6 +59,10 @@ fi
     --cache-dir "${CACHE_DIR}" \
     --scan-pages "${SCAN_PAGES}" \
     --worker-limit "${WORKER_LIMIT}" \
+    --listpages-ttl "${LISTPAGES_TTL}" \
+    --transitive-ttl "${TRANSITIVE_TTL}" \
+    --other-dynamic-ttl "${OTHER_DYNAMIC_TTL}" \
+    --unknown-ttl "${UNKNOWN_TTL}" \
     --snapshot-dir "${SNAPSHOT_DIR}" \
     --min-interval "${MIN_INTERVAL}" \
     --progress

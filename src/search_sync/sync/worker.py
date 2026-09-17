@@ -41,9 +41,9 @@ class FetchWorker:
         self.cache_dir = Path(cache_dir)
         self.retry_backoff_seconds = retry_backoff_seconds
         self.dynamic_ttls = dynamic_ttls or {
-            "dynamic-listpages": 900,
-            "dynamic-transitive": 900,
-            "dynamic-other": 1800,
+            "dynamic-listpages": 1800,
+            "dynamic-transitive": 1800,
+            "dynamic-other": 3600,
             "unknown": 3600,
         }
 

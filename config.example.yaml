@@ -5,14 +5,15 @@ manifest:
   path: /pagelist
   per_page: 100
 sync:
-  poll_seconds: 120
+  poll_seconds: 600
   overlap_seconds: 900
   min_request_interval_seconds: 2
   request_timeout_seconds: 30
   max_pages_per_scan: 100
 dynamic:
-  listpages_ttl_seconds: 900
-  other_ttl_seconds: 1800
+  listpages_ttl_seconds: 1800
+  transitive_ttl_seconds: 1800
+  other_ttl_seconds: 3600
   unknown_ttl_seconds: 3600
 storage:
   database: data/state.sqlite3

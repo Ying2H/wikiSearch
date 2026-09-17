@@ -30,6 +30,10 @@ def main() -> int:
     parser.add_argument("--worker-limit", type=int, default=10)
     parser.add_argument("--progress", action="store_true", help="逐页输出 worker 进度到 stderr")
     parser.add_argument("--skip-scan", action="store_true", help="只处理已有 SQLite 队列，不访问清单")
+    parser.add_argument("--listpages-ttl", type=int, default=1800, help="直接包含 ListPages 页面的复核间隔（秒）")
+    parser.add_argument("--transitive-ttl", type=int, default=1800, help="间接受动态依赖影响页面的复核间隔（秒）")
+    parser.add_argument("--other-dynamic-ttl", type=int, default=3600, help="其他动态页面的复核间隔（秒）")
+    parser.add_argument("--unknown-ttl", type=int, default=3600, help="未知分类页面的复核间隔（秒）")
     parser.add_argument("--min-interval", type=float, default=2.0)
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
@@ -53,6 +57,12 @@ def main() -> int:
             }
         results = []
         if args.worker_limit > 0:
+            dynamic_ttls = {
+                "dynamic-listpages": max(1, args.listpages_ttl),
+                "dynamic-transitive": max(1, args.transitive_ttl),
+                "dynamic-other": max(1, args.other_dynamic_ttl),
+                "unknown": max(1, args.unknown_ttl),
+            }
             def report_progress(result, index, total):
                 print(
                     json.dumps(
@@ -69,7 +79,12 @@ def main() -> int:
                     flush=True,
                 )
 
-            results = FetchWorker(site, store, cache_dir=args.cache_dir).run_once(
+            results = FetchWorker(
+                site,
+                store,
+                cache_dir=args.cache_dir,
+                dynamic_ttls=dynamic_ttls,
+            ).run_once(
                 limit=args.worker_limit,
                 on_result=report_progress if args.progress else None,
             )
@@ -77,6 +92,7 @@ def main() -> int:
             {"fullname": result.fullname, "status": result.status, "page_id": result.page_id, "error": result.error}
             for result in results
         ]
+        output["dynamic_ttls"] = dynamic_ttls if args.worker_limit > 0 else None
         if args.snapshot_dir:
             try:
                 snapshot = RecordSnapshotter(store, cache_dir=args.cache_dir).export(
