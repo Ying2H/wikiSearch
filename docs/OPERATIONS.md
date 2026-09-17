@@ -10,6 +10,15 @@ git config user.email "你的邮箱"
 .\scripts\bootstrap.ps1
 ```
 
+Linux 服务器使用：
+
+```bash
+git config user.name "work"
+git config user.email "work@local"
+chmod +x scripts/bootstrap.sh
+./scripts/bootstrap.sh
+```
+
 当前没有配置远端仓库，也没有自动提交或推送。将来接入服务器时，可在服务器上用同一 bootstrap 脚本从干净 checkout 重建环境；`requirements.txt` 当前为空依赖（仅标准库），Node 侧已在 `package.json`/`package-lock.json` 中锁定 Pagefind 1.5.2。
 
 抓取 worker 只处理 SQLite 中已入队的页面；成功时把渲染 HTML、FTML 和标准化记录写入缓存，源码或页面请求失败时保留任务并按退避时间重试。当前 worker 尚未作为常驻服务或系统定时任务安装。

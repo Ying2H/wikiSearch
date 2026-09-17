@@ -22,6 +22,13 @@
 .\.venv\Scripts\python.exe scripts/probe_site.py --base-url http://wymbot.wikidot.com --manifest-path /pagelist --max-pages 2 --min-interval 0
 ```
 
+Linux 服务器可使用等价的 `scripts/bootstrap.sh` 初始化 Python 虚拟环境和 Node 依赖：
+
+```bash
+./scripts/bootstrap.sh
+./.venv/bin/python -m unittest discover -s . -t . -v
+```
+
 `probe_site.py` 是只读探测；生产同步器尚未接入后台调度和目标站全量正文抓取。
 
 Pagefind 构建：
