@@ -18,3 +18,5 @@ class WebPageTests(unittest.TestCase):
         self.assertIn('link.rel = "noopener noreferrer"', search_script)
         self.assertIn('compositionstart', search_script)
         self.assertIn('compositionend', search_script)
+        self.assertIn('singleHanQuery ? ["title", "fullname"]', search_script)
+        self.assertIn('正在标题和页面名中搜索', search_script)

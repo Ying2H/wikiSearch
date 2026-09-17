@@ -159,13 +159,13 @@ function highlightText(text, query) {
   return output + escapeHtml(source.slice(cursor));
 }
 
-function isExactPhrase(document, normalizedQuery) {
+function isExactPhrase(document, normalizedQuery, fields = SEARCHABLE_FIELDS) {
   if (!normalizedQuery) return false;
-  return SEARCHABLE_FIELDS.some((field) => normalizeText(document[field]).includes(normalizedQuery));
+  return fields.some((field) => normalizeText(document[field]).includes(normalizedQuery));
 }
 
-function getSnippet(document, query) {
-  const source = String(document.content || document.description || document.title || document.fullname || "")
+function getSnippet(document, query, fields = SEARCHABLE_FIELDS) {
+  const source = fields.map((field) => document[field] ?? "").join(" ")
     .replace(/\s+/gu, " ")
     .trim();
   if (!source) return "";
@@ -263,12 +263,11 @@ async function runSearch(rawQuery) {
     setStatus("输入关键词开始搜索");
     return;
   }
-  if (isSingleHanQuery(query)) {
-    setStatus("中文搜索请至少输入两个汉字");
-    return;
-  }
+  const singleHanQuery = isSingleHanQuery(query);
+  const searchableFields = singleHanQuery ? ["title", "fullname"] : SEARCHABLE_FIELDS;
+  const searchProperties = singleHanQuery ? ["title", "fullname"] : SEARCH_PROPERTIES;
 
-  setStatus("搜索中…");
+  setStatus(singleHanQuery ? "正在标题和页面名中搜索…" : "搜索中…");
   try {
     const database = await state.databasePromise;
     if (requestId !== state.requestId) return;
@@ -276,24 +275,24 @@ async function runSearch(rawQuery) {
     const normalizedQuery = normalizeText(query);
     const result = await oramaSearch(database, {
       term: query,
-      properties: SEARCH_PROPERTIES,
+      properties: searchProperties,
       threshold: 0,
       tolerance: 0,
       limit: 50,
       boost: { title: 4, fullname: 3, category: 1.5 },
     });
     let hits = result.hits;
-    if (containsHan(query) && !hits.some((hit) => isExactPhrase(hit.document, normalizedQuery))) {
+    if (containsHan(query) && !hits.some((hit) => isExactPhrase(hit.document, normalizedQuery, searchableFields))) {
       const documents = await allDocuments();
-      const exactDocuments = documents.filter((document) => isExactPhrase(document, normalizedQuery));
+      const exactDocuments = documents.filter((document) => isExactPhrase(document, normalizedQuery, searchableFields));
       hits = mergeHits(hits, exactDocuments);
     }
     hits.sort((left, right) => {
-      const exactDelta = Number(isExactPhrase(right.document, normalizedQuery)) - Number(isExactPhrase(left.document, normalizedQuery));
+      const exactDelta = Number(isExactPhrase(right.document, normalizedQuery, searchableFields)) - Number(isExactPhrase(left.document, normalizedQuery, searchableFields));
       return exactDelta || right.score - left.score;
     });
     if (requestId !== state.requestId) return;
-    renderResults(hits.slice(0, 20), query);
+    renderResults(hits.slice(0, 20), query, searchableFields);
     setStatus(hits.length ? `找到 ${hits.length} 个结果` : "没有找到结果");
   } catch (error) {
     if (requestId !== state.requestId) return;
@@ -301,7 +300,7 @@ async function runSearch(rawQuery) {
   }
 }
 
-function renderResults(hits, query) {
+function renderResults(hits, query, searchableFields = SEARCHABLE_FIELDS) {
   resultsRoot.replaceChildren();
   for (const hit of hits) {
     const document = hit.document;
@@ -320,7 +319,7 @@ function renderResults(hits, query) {
       item.append(name);
     }
 
-    const snippet = getSnippet(document, query);
+    const snippet = getSnippet(document, query, searchableFields);
     if (snippet) {
       const paragraph = documentElement("p", "result-snippet");
       paragraph.innerHTML = snippet;
