@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import uuid
@@ -56,6 +57,7 @@ def assemble_site(
         raise PublishError(f"missing Pagefind assets: {', '.join(missing)}")
 
     metadata: dict[str, Any] = {
+        "entrypoint_hash": hashlib.sha256(index.read_bytes()).hexdigest(),
         "pagefind_assets": len(list(pagefind.rglob("*"))),
     }
     if manifest_path is not None:

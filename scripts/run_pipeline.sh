@@ -97,6 +97,16 @@ if [[ "${SNAPSHOT_READY}" != "1" ]]; then
     exit 2
 fi
 
+NEW_MANIFEST_HASH="$(${PYTHON_BIN} -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["manifest_hash"])' "${SNAPSHOT_DIR}/manifest.json")"
+NEW_ENTRYPOINT_HASH="$(${PYTHON_BIN} -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest())' "web/index.html")"
+if [[ -f "${SITE_DIR}/build.json" ]]; then
+    OLD_SIGNATURE="$(${PYTHON_BIN} -c 'import json,sys; p=json.load(open(sys.argv[1], encoding="utf-8")); print(str(p.get("manifest_hash", "")) + ":" + str(p.get("entrypoint_hash", "")))' "${SITE_DIR}/build.json")"
+    if [[ "${OLD_SIGNATURE}" == "${NEW_MANIFEST_HASH}:${NEW_ENTRYPOINT_HASH}" ]]; then
+        echo "Corpus and entrypoint are unchanged; skip Pagefind rebuild and GitHub Pages push."
+        exit 0
+    fi
+fi
+
 npm run build:index -- --records "${SNAPSHOT_DIR}" --output "${PAGEFIND_DIR}"
 
 "${PYTHON_BIN}" scripts/assemble_site.py \

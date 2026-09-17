@@ -109,8 +109,10 @@ class RecordSnapshotter:
                 "excluded": excluded_entries,
                 "records": manifest_entries,
             }
+            hash_payload = dict(manifest_payload)
+            hash_payload.pop("corpus_generation", None)
             manifest_hash = hashlib.sha256(
-                json.dumps(manifest_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                json.dumps(hash_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
             ).hexdigest()
             manifest_payload["manifest_hash"] = manifest_hash
             (staged / "manifest.json").write_text(

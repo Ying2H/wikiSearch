@@ -46,6 +46,7 @@ class SnapshotTests(unittest.TestCase):
                     site_id="example", output_dir=root / "snapshot-2"
                 )
                 self.assertEqual(second.generation, 2)
+                self.assertEqual(snapshot.manifest_hash, second.manifest_hash)
 
     def test_snapshot_excludes_empty_content_with_reason(self):
         class EmptySite(FakeSite):

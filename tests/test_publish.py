@@ -36,6 +36,7 @@ class PublishTests(unittest.TestCase):
             metadata = json.loads((root / "site" / "build.json").read_text(encoding="utf-8"))
             self.assertEqual(metadata["corpus_generation"], 3)
             self.assertEqual(metadata["manifest_hash"], "abc")
+            self.assertEqual(len(metadata["entrypoint_hash"]), 64)
 
     def test_second_assembly_replaces_old_files_as_a_unit(self):
         with tempfile.TemporaryDirectory() as temp_dir:
