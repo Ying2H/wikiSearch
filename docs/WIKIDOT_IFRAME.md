@@ -8,6 +8,8 @@ https://ying2h.github.io/wikiSearch/
 
 搜索页会通过 `window.postMessage` 把内容高度通知父窗口；父窗口代码校验消息来源后更新 iframe 高度，并限制在 280–20000 像素之间。这样搜索结果增多、收起或展开时，iframe 会跟着改变高度。
 
+搜索结果链接已设置为新标签页/窗口打开，不会在 Wikidot 内嵌 iframe 中导航。
+
 ## 推荐方式：使用 `[[html]]` 块
 
 Wikidot 的 HTML 块会在 iframe 中运行 HTML/JavaScript，普通页面正文不能直接执行任意脚本；官方文档也说明可使用 `[[html]] … [[/html]]`，而 `[[iframe]]` 支持 `height`、`width`、`scrolling`、`style` 等属性。[Wikidot HTML Blocks](https://www.wikidot.com/doc-wiki-syntax:html-blocks) · [Wikidot Embedding code](https://www.wikidot.com/doc-wiki-syntax:embedding-code)

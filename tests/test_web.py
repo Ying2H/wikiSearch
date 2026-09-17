@@ -12,3 +12,5 @@ class WebPageTests(unittest.TestCase):
         self.assertNotIn("结果链接会返回目标 Wikidot 页面", page)
         self.assertIn('type: "wymbot-search-height"', page)
         self.assertIn("ResizeObserver", page)
+        self.assertIn('<base target="_blank">', page)
+        self.assertIn('link.rel = "noopener noreferrer"', page)
