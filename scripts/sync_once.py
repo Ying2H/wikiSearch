@@ -28,6 +28,8 @@ def main() -> int:
     parser.add_argument("--snapshot-dir", default=None)
     parser.add_argument("--scan-pages", type=int, default=1)
     parser.add_argument("--worker-limit", type=int, default=10)
+    parser.add_argument("--progress", action="store_true", help="逐页输出 worker 进度到 stderr")
+    parser.add_argument("--skip-scan", action="store_true", help="只处理已有 SQLite 队列，不访问清单")
     parser.add_argument("--min-interval", type=float, default=2.0)
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
@@ -37,18 +39,40 @@ def main() -> int:
     site = WikidotSite(args.base_url, client=client, manifest_path=args.manifest_path)
     output: dict[str, object] = {"site_id": site_id}
     with StateStore(args.db) as store:
-        scan = InventoryScanner(site, store, site_id=site_id).scan(max_pages=args.scan_pages)
-        output["scan"] = {
-            "pages_read": scan.pages_read,
-            "entries_seen": scan.entries_seen,
-            "entries_enqueued": scan.entries_enqueued,
-            "coverage_complete": scan.coverage_complete,
-            "watermark": scan.watermark,
-            "next_cursor": scan.next_cursor,
-        }
+        if args.skip_scan:
+            output["scan"] = {"skipped": True}
+        else:
+            scan = InventoryScanner(site, store, site_id=site_id).scan(max_pages=args.scan_pages)
+            output["scan"] = {
+                "pages_read": scan.pages_read,
+                "entries_seen": scan.entries_seen,
+                "entries_enqueued": scan.entries_enqueued,
+                "coverage_complete": scan.coverage_complete,
+                "watermark": scan.watermark,
+                "next_cursor": scan.next_cursor,
+            }
         results = []
         if args.worker_limit > 0:
-            results = FetchWorker(site, store, cache_dir=args.cache_dir).run_once(limit=args.worker_limit)
+            def report_progress(result, index, total):
+                print(
+                    json.dumps(
+                        {
+                            "worker": f"{index}/{total}",
+                            "fullname": result.fullname,
+                            "status": result.status,
+                            "page_id": result.page_id,
+                            "error": result.error,
+                        },
+                        ensure_ascii=False,
+                    ),
+                    file=sys.stderr,
+                    flush=True,
+                )
+
+            results = FetchWorker(site, store, cache_dir=args.cache_dir).run_once(
+                limit=args.worker_limit,
+                on_result=report_progress if args.progress else None,
+            )
         output["jobs"] = [
             {"fullname": result.fullname, "status": result.status, "page_id": result.page_id, "error": result.error}
             for result in results
@@ -60,6 +84,7 @@ def main() -> int:
                 )
                 output["snapshot"] = {
                     "count": snapshot.count,
+                    "excluded_count": snapshot.excluded_count,
                     "generation": snapshot.generation,
                     "manifest_hash": snapshot.manifest_hash,
                     "output_dir": str(snapshot.output_dir),

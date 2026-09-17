@@ -27,4 +27,6 @@ npm run build:index -- --records data/cache --output data/publish/pagefind
 
 中文记录使用 `language: "zh"`。Pagefind 的 extended 发行版对中文分词提供专门支持；标题权重、标签过滤和删除后旧词消失仍需在真实语料上做浏览器验收。
 
+目标站首次全量结果：active 176 页，174 页有可索引正文，2 页因空正文进入 `manifest.json` 的 `excluded` 列表；软 404 页面不属于 active 快照。
+
 参考：[Pagefind Node API](https://pagefind.app/docs/node-api/)、[多语言搜索](https://pagefind.app/docs/multilingual/)。

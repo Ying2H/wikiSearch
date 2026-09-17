@@ -14,6 +14,14 @@ git config user.email "你的邮箱"
 
 抓取 worker 只处理 SQLite 中已入队的页面；成功时把渲染 HTML、FTML 和标准化记录写入缓存，源码或页面请求失败时保留任务并按退避时间重试。当前 worker 尚未作为常驻服务或系统定时任务安装。
 
+首次全量初始化可使用（目标站当前约需 10–15 分钟）：
+
+```powershell
+.\.venv\Scripts\python.exe scripts/sync_once.py --db data/target.sqlite3 --cache-dir data/target-cache --scan-pages 2 --worker-limit 177 --snapshot-dir data/target-snapshot --min-interval 2 --progress
+```
+
+后续只处理已有队列时加 `--skip-scan`。HTTP 200 但无 Wikidot page ID 的页面会进入 `quarantined`，对应 job 进入 `blocked`，不会无限重试，也不会作为 active 页面进入快照。
+
 ## Pagefind 构建
 
 先完成一次同步并确保 `data/cache/**/record.json` 是一致快照，再执行：
@@ -23,7 +31,7 @@ npm ci
 npm run build:index -- --records data/cache --output data/publish/pagefind
 ```
 
-Pagefind 构建失败时，暂存输出会被清理，既有输出目录不会被替换。当前构建器已用两条中文 fixture 验证；尚未对 177 条目标站语料执行全量正文抓取和浏览器验收。
+Pagefind 构建失败时，暂存输出会被清理，既有输出目录不会被替换。空正文页面会写入快照排除清单而不进入搜索索引；本次目标站初始化最终索引了 174 条记录，排除了 2 条空正文页面。
 
 推荐的单轮流程是先生成 SQLite active 页面的快照，再构建索引：
 
@@ -33,6 +41,12 @@ npm run build:index -- --records data/build-input --output data/publish/pagefind
 ```
 
 快照会拒绝 observed version 与 fetched version 不一致、缓存文件缺失或内容哈希不匹配的页面；此时不应继续发布新索引。
+
+若只修改了索引提取或过滤逻辑，可使用已有缓存重新导出快照，不需要重新请求目标站：
+
+```powershell
+.\.venv\Scripts\python.exe scripts/export_snapshot.py --db data/target.sqlite3 --cache-dir data/target-cache --site-id wymbot.wikidot.com --output-dir data/build-input
+```
 
 ## 只读探测
 

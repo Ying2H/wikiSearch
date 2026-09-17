@@ -4,9 +4,9 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
-from search_sync.crawler.wikidot import WikidotSite
+from search_sync.crawler.wikidot import Soft404Error, WikidotSite
 from search_sync.extract.content import extract_main_content, stable_record_hash
 from search_sync.sync.cache import page_cache_dir, write_text_atomic
 from search_sync.sync.classifier import classify_source
@@ -105,18 +105,32 @@ class FetchWorker:
                 page_id=rendered.page_id,
                 content_hash=content_hash,
             )
+        except Soft404Error as exc:
+            message = f"{type(exc).__name__}: {exc}"
+            self.store.quarantine_job(job_id, page_row_id, error=message)
+            return JobResult(job_id, page_row_id, fullname, "quarantined", error=message)
         except Exception as exc:
             message = f"{type(exc).__name__}: {exc}"
             self.store.release_job(job_id, error=message, backoff_seconds=self.retry_backoff_seconds)
             return JobResult(job_id, page_row_id, fullname, "failed", error=message)
 
-    def run_once(self, *, limit: int = 10) -> list[JobResult]:
+    def run_once(
+        self,
+        *,
+        limit: int = 10,
+        on_result: Callable[[JobResult, int, int], None] | None = None,
+    ) -> list[JobResult]:
         self.store.recover_expired_leases()
         self.store.schedule_due_dynamic(ttl_by_class=self.dynamic_ttls, limit=limit)
         results: list[JobResult] = []
-        for job in self.store.queued_jobs(limit=limit):
+        jobs = self.store.queued_jobs(limit=limit)
+        total = len(jobs)
+        for index, job in enumerate(jobs, start=1):
             job_id = int(job["id"])
             if not self.store.claim_job(job_id):
                 continue
-            results.append(self.process_job(job))
+            result = self.process_job(job)
+            results.append(result)
+            if on_result is not None:
+                on_result(result, index, total)
         return results

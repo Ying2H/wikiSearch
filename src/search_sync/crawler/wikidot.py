@@ -15,6 +15,10 @@ class WikidotResponseError(RuntimeError):
     """Wikidot 返回了不可作为页面/模块使用的响应。"""
 
 
+class Soft404Error(WikidotResponseError):
+    """HTTP 200 但页面没有有效 Wikidot page ID。"""
+
+
 @dataclass(frozen=True)
 class AmcConfig:
     per_page: int = 100
@@ -107,7 +111,7 @@ class WikidotSite:
             raise WikidotResponseError(f"page returned HTTP {response.status}: {url}")
         match = re.search(r"WIKIREQUEST\.info\.pageId\s*=\s*(\d+);", response.text)
         if match is None:
-            raise WikidotResponseError(f"page has no page id (possible soft 404): {url}")
+            raise Soft404Error(f"page has no page id (possible soft 404): {url}")
         return RenderedPage(
             fullname=fullname,
             page_id=int(match.group(1)),

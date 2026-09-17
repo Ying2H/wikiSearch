@@ -58,6 +58,27 @@ class WorkerTests(unittest.TestCase):
                 self.assertEqual(results[0].status, "failed")
                 self.assertEqual(store.queued_job_count("example"), 1)
 
+    def test_soft_404_is_quarantined_instead_of_retried_forever(self):
+        from search_sync.crawler.wikidot import Soft404Error
+
+        class MissingSite(FakeSite):
+            def fetch_rendered(self, fullname: str) -> RenderedPage:
+                raise Soft404Error("missing page id")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with StateStore(root / "state.sqlite3") as store:
+                row_id, _ = store.observe_manifest_entry(
+                    site_id="example",
+                    entry=ManifestEntry("admin:manage", "Manage", 100, 0),
+                    canonical_url="http://example/admin:manage",
+                )
+                result = FetchWorker(MissingSite(), store, cache_dir=root / "cache").run_once(limit=1)[0]
+
+                self.assertEqual(result.status, "quarantined")
+                self.assertEqual(store.page_state(row_id)["status"], "quarantined")
+                self.assertEqual(store.queued_job_count("example"), 0)
+
     def test_dynamic_page_gets_ttl_and_is_requeued_when_due(self):
         class DynamicSite(FakeSite):
             def fetch_source(self, page_id: int) -> SourcePage:

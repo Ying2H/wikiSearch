@@ -40,4 +40,10 @@ npm run build:index -- --records data/cache --output data/publish/pagefind
 npm run build:index -- --records data/build-input --output data/publish/pagefind
 ```
 
+已有缓存需要重新导出快照时，可跳过网络扫描：
+
+```powershell
+.\.venv\Scripts\python.exe scripts/export_snapshot.py --db data/target.sqlite3 --cache-dir data/target-cache --site-id wymbot.wikidot.com --output-dir data/target-snapshot
+```
+
 项目已经初始化本地 Git 的 `main` 分支，并配置了 Windows 下的换行和长路径支持；Git 用户名、邮箱和远端地址留给实际维护者设置。运行时 Python 依赖目前全部来自标准库，依赖清单保留在 `requirements.txt`、`requirements-dev.txt` 和 `pyproject.toml`，便于后续加入 Pagefind 构建链。

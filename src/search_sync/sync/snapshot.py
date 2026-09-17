@@ -22,6 +22,7 @@ class RecordSnapshot:
     site_id: str
     generation: int
     count: int
+    excluded_count: int
     manifest_hash: str
     output_dir: Path
 
@@ -51,6 +52,11 @@ class RecordSnapshotter:
         self.cache_dir = Path(cache_dir)
 
     def export(self, *, site_id: str, output_dir: str | Path) -> RecordSnapshot:
+        pending = self.store.pending_active_pages(site_id)
+        if pending:
+            names = ", ".join(str(row["fullname"]) for row in pending[:10])
+            suffix = "..." if len(pending) > 10 else ""
+            raise SnapshotError(f"active pages have pending jobs: {names}{suffix}")
         rows = self.store.active_pages(site_id)
         if not rows:
             raise SnapshotError(f"no active records for site: {site_id}")
@@ -58,11 +64,12 @@ class RecordSnapshotter:
         output = Path(output_dir)
         staged = output.parent / f"{output.name}.staged-{uuid.uuid4().hex}"
         manifest_entries: list[dict[str, Any]] = []
+        excluded_entries: list[dict[str, Any]] = []
         try:
             staged.mkdir(parents=True, exist_ok=False)
             records_dir = staged / "records"
             records_dir.mkdir()
-            for index, row in enumerate(rows, start=1):
+            for row in rows:
                 observed = (row["observed_updated_at"], row["observed_revisions"])
                 fetched = (row["fetched_updated_at"], row["fetched_revisions"])
                 if observed != fetched:
@@ -74,7 +81,16 @@ class RecordSnapshotter:
                     raise SnapshotError(f"invalid cache for {row['fullname']}: {exc}") from exc
                 if stable_record_hash(record) != row["content_hash"]:
                     raise SnapshotError(f"cache hash mismatch: {row['fullname']}")
-                destination = records_dir / f"{index:08d}" / "record.json"
+                if not str(record.get("content") or "").strip():
+                    excluded_entries.append(
+                        {
+                            "page_row_id": int(row["id"]),
+                            "fullname": row["fullname"],
+                            "reason": "empty-content",
+                        }
+                    )
+                    continue
+                destination = records_dir / f"{len(manifest_entries) + 1:08d}" / "record.json"
                 destination.parent.mkdir(parents=True)
                 shutil.copyfile(record_path, destination)
                 manifest_entries.append(
@@ -88,7 +104,9 @@ class RecordSnapshotter:
             manifest_payload = {
                 "site_id": site_id,
                 "corpus_generation": generation,
+                "active_count": len(rows),
                 "count": len(manifest_entries),
+                "excluded": excluded_entries,
                 "records": manifest_entries,
             }
             manifest_hash = hashlib.sha256(
@@ -110,4 +128,4 @@ class RecordSnapshotter:
             if staged.exists():
                 shutil.rmtree(staged)
             raise
-        return RecordSnapshot(site_id, generation, len(manifest_entries), manifest_hash, output)
+        return RecordSnapshot(site_id, generation, len(manifest_entries), len(excluded_entries), manifest_hash, output)

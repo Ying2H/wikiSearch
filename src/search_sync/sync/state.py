@@ -354,6 +354,20 @@ class StateStore:
             ).fetchall()
         )
 
+    def pending_active_pages(self, site_id: str) -> list[sqlite3.Row]:
+        return list(
+            self.db.execute(
+                """
+                SELECT DISTINCT pages.id, pages.fullname, jobs.status, jobs.reasons
+                FROM pages JOIN jobs ON jobs.page_row_id = pages.id
+                WHERE pages.site_id = ? AND pages.status = 'active'
+                  AND jobs.status IN ('queued', 'leased')
+                ORDER BY pages.id
+                """,
+                (site_id,),
+            ).fetchall()
+        )
+
     def next_corpus_generation(self) -> int:
         row = self.db.execute("SELECT COALESCE(MAX(corpus_generation), 0) + 1 AS next FROM builds").fetchone()
         return int(row["next"])
@@ -602,6 +616,21 @@ class StateStore:
                 WHERE id = ? AND status = 'leased'
                 """,
                 (now + max(1, backoff_seconds), error[:1000], now, job_id),
+            )
+
+    def quarantine_job(self, job_id: int, page_row_id: int, *, error: str) -> None:
+        now = _now()
+        with self.db:
+            self.db.execute(
+                """
+                UPDATE jobs SET status = 'blocked', lease_until = NULL,
+                    error = ?, updated_at = ? WHERE id = ?
+                """,
+                (error[:1000], now, job_id),
+            )
+            self.db.execute(
+                "UPDATE pages SET status = 'quarantined', updated_at = ? WHERE id = ?",
+                (now, page_row_id),
             )
 
     def recover_expired_leases(self, *, now: int | None = None) -> int:
