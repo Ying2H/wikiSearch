@@ -3,26 +3,91 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RanDomWiki 搜索</title>
+    <title>Wikidot 搜索</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
     <link href="./pagefind/pagefind-ui.css" rel="stylesheet">
   </head>
   <body>
     <main>
-      <h1>RanDomWiki 搜索</h1>
-      <p>结果链接会返回目标 Wikidot 页面。</p>
       <div id="search"></div>
     </main>
     <script src="./pagefind/pagefind-ui.js"></script>
     <script>
-      new PagefindUI({
-        element: "#search",
-        showImages: false,
-        translations: {
-          placeholder: "搜索页面",
-          zero_results: "没有找到结果",
-          load_more: "加载更多"
+      (() => {
+        const minHeight = 280;
+        const allowedParentOrigins = new Set([
+          "http://wymbot.wikidot.com",
+          "https://wymbot.wikidot.com"
+        ]);
+        let lastHeight = 0;
+        let scheduled = false;
+
+        function parentOrigin() {
+          try {
+            const origin = new URL(document.referrer).origin;
+            return allowedParentOrigins.has(origin) ? origin : "*";
+          } catch {
+            return "*";
+          }
         }
-      });
+
+        function sendHeight() {
+          if (window.parent === window) return;
+          const height = Math.max(
+            minHeight,
+            document.documentElement.scrollHeight,
+            document.body.scrollHeight
+          );
+          if (height === lastHeight) return;
+          lastHeight = height;
+          window.parent.postMessage(
+            { type: "wymbot-search-height", height },
+            parentOrigin()
+          );
+        }
+
+        function scheduleHeight() {
+          if (scheduled) return;
+          scheduled = true;
+          requestAnimationFrame(() => {
+            scheduled = false;
+            sendHeight();
+          });
+        }
+
+        new ResizeObserver(scheduleHeight).observe(document.documentElement);
+        new MutationObserver(scheduleHeight).observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: true
+        });
+        window.addEventListener("load", scheduleHeight);
+        window.addEventListener("message", (event) => {
+          if (
+            event.source === window.parent &&
+            event.data?.type === "wymbot-search-request-height"
+          ) {
+            scheduleHeight();
+          }
+        });
+
+        new PagefindUI({
+          element: "#search",
+          showImages: false,
+          translations: {
+            placeholder: "搜索页面",
+            zero_results: "没有找到结果",
+            load_more: "加载更多"
+          }
+        });
+        scheduleHeight();
+      })();
     </script>
   </body>
 </html>

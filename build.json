@@ -1,9 +1,9 @@
 {
-  "entrypoint_hash": "011bf6edcb8dd7a05656d166e2467e6178cbee0e3022263f44a6618685be47b1",
+  "entrypoint_hash": "5672543338eed33f2c917ef77759635892910ba4ad20412e93dc87ef0e890b39",
   "pagefind_assets": 194,
   "site_id": "wymbot.wikidot.com",
-  "corpus_generation": 4,
-  "record_count": 173,
+  "corpus_generation": 7,
+  "record_count": 174,
   "excluded_count": 3,
-  "manifest_hash": "e7713c0341d2b3bc503240940f070304d88c451a0fec220663993d3c0d10fbb6"
+  "manifest_hash": "ca516989a8d13aa5f90b31a42f9211c0baae970b4140a9f1d7a73a9d3e277067"
 }
