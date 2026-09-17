@@ -17,4 +17,5 @@ Environment=LISTPAGES_TTL=1800
 Environment=TRANSITIVE_TTL=1800
 Environment=OTHER_DYNAMIC_TTL=3600
 Environment=UNKNOWN_TTL=3600
+Environment="GIT_SSH_COMMAND=ssh -i /root/.ssh/wymbot_github_pages_ed25519 -o IdentitiesOnly=yes"
 ExecStart=/root/code/wymboTSearch/scripts/run_pipeline.sh --publish

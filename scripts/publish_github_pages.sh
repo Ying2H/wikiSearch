@@ -7,6 +7,8 @@ REMOTE_NAME="${GITHUB_REMOTE:-origin}"
 PAGES_DIR="${PAGES_DIR:-${ROOT_DIR}/data/github-pages}"
 GIT_NAME="${GIT_NAME:-work}"
 GIT_EMAIL="${GIT_EMAIL:-work@local}"
+GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -i /root/.ssh/wymbot_github_pages_ed25519 -o IdentitiesOnly=yes}"
+export GIT_SSH_COMMAND
 
 [[ -f "${SITE_DIR}/index.html" ]] || { echo "Static site entrypoint not found: ${SITE_DIR}/index.html" >&2; exit 1; }
 
