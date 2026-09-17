@@ -1,0 +1,28 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local runtime data and secrets
+data/
+.env
+.env.*
+!.env.example
+
+# Node/Pagefind build output
+node_modules/
+npm-debug.log*
+dist/
+build/
+pagefind/
+
+# IDE/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

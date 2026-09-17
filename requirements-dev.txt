@@ -1,0 +1,2 @@
+# Development dependencies: none required for the current test suite.
+# Tests run with Python's built-in unittest module.

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wikidot-pagefind-sync"
+version = "0.1.0"
+description = "可恢复的 Wikidot 增量抓取与 Pagefind 索引基础设施"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+wikidot-sync = "search_sync.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

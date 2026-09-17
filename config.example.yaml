@@ -1,0 +1,20 @@
+# 一期默认配置：只读公开页面，不登录，不向 Wikidot 写入内容。
+site_url: http://wymbot.wikidot.com
+manifest:
+  provider: html_manifest
+  path: /pagelist
+  per_page: 100
+sync:
+  poll_seconds: 120
+  overlap_seconds: 900
+  min_request_interval_seconds: 2
+  request_timeout_seconds: 30
+  max_pages_per_scan: 100
+dynamic:
+  listpages_ttl_seconds: 900
+  other_ttl_seconds: 1800
+  unknown_ttl_seconds: 3600
+storage:
+  database: data/state.sqlite3
+  cache_dir: data/cache
+  publish_dir: data/publish
