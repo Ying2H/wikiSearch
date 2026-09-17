@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import shutil
-import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -57,7 +56,6 @@ def assemble_site(
         raise PublishError(f"missing Pagefind assets: {', '.join(missing)}")
 
     metadata: dict[str, Any] = {
-        "created_at": int(time.time()),
         "pagefind_assets": len(list(pagefind.rglob("*"))),
     }
     if manifest_path is not None:

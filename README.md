@@ -12,7 +12,7 @@
 - 为正文提取和稳定记录哈希提供可离线测试的基础函数。
 - 使用 Pagefind 1.5.2 从缓存记录生成中文静态搜索索引。
 
-当前没有自动向 Wikidot 创建页面、修改站点或发布静态文件。目标站能力探测见 [docs/CAPABILITY_REPORT.md](docs/CAPABILITY_REPORT.md)，运行边界见 [docs/OPERATIONS.md](docs/OPERATIONS.md)。
+当前没有自动向 Wikidot 创建页面或修改站点；服务器发布流程见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)，目标站能力探测见 [docs/CAPABILITY_REPORT.md](docs/CAPABILITY_REPORT.md)，运行边界见 [docs/OPERATIONS.md](docs/OPERATIONS.md)。
 
 ## 本地环境与运行
 

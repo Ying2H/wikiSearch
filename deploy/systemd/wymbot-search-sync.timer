@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Wikidot search synchronization every 30 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+Persistent=true
+Unit=wymbot-search-sync.service
+
+[Install]
+WantedBy=timers.target

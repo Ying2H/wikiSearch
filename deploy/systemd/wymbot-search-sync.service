@@ -1,0 +1,16 @@
+[Unit]
+Description=Wikidot search crawler and GitHub Pages publisher
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/code/wymboTSearch
+Environment=PYTHON_BIN=/root/code/wymboTSearch/.venv/bin/python
+Environment=SITE_URL=http://wymbot.wikidot.com
+Environment=MANIFEST_PATH=/pagelist
+Environment=SCAN_PAGES=2
+Environment=WORKER_LIMIT=200
+Environment=MIN_INTERVAL=2
+ExecStart=/root/code/wymboTSearch/scripts/run_pipeline.sh --publish
