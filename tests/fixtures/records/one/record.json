@@ -1,0 +1,15 @@
+{
+  "url": "http://wymbot.wikidot.com/article:one",
+  "content": "第一篇中文测试文章，包含 Pagefind。",
+  "language": "zh",
+  "meta": {
+    "title": "第一篇文章",
+    "category": "article"
+  },
+  "filters": {
+    "page_type": ["article"]
+  },
+  "sort": {
+    "updated": "1789614157"
+  }
+}

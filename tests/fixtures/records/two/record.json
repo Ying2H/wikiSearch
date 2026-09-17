@@ -1,0 +1,15 @@
+{
+  "url": "http://wymbot.wikidot.com/component:nav",
+  "content": "第二篇内容，包含导航组件和 English keyword。",
+  "language": "zh",
+  "meta": {
+    "title": "导航组件",
+    "category": "component"
+  },
+  "filters": {
+    "page_type": ["component"]
+  },
+  "sort": {
+    "updated": "1789541863"
+  }
+}

@@ -10,9 +10,20 @@ git config user.email "你的邮箱"
 .\scripts\bootstrap.ps1
 ```
 
-当前没有配置远端仓库，也没有自动提交或推送。将来接入服务器时，可在服务器上用同一 bootstrap 脚本从干净 checkout 重建环境；`requirements.txt` 当前为空依赖（仅标准库），Pagefind/Node 依赖会在搜索构建阶段单独锁定。
+当前没有配置远端仓库，也没有自动提交或推送。将来接入服务器时，可在服务器上用同一 bootstrap 脚本从干净 checkout 重建环境；`requirements.txt` 当前为空依赖（仅标准库），Node 侧已在 `package.json`/`package-lock.json` 中锁定 Pagefind 1.5.2。
 
 抓取 worker 只处理 SQLite 中已入队的页面；成功时把渲染 HTML、FTML 和标准化记录写入缓存，源码或页面请求失败时保留任务并按退避时间重试。当前 worker 尚未作为常驻服务或系统定时任务安装。
+
+## Pagefind 构建
+
+先完成一次同步并确保 `data/cache/**/record.json` 是一致快照，再执行：
+
+```powershell
+npm ci
+npm run build:index -- --records data/cache --output data/publish/pagefind
+```
+
+Pagefind 构建失败时，暂存输出会被清理，既有输出目录不会被替换。当前构建器已用两条中文 fixture 验证；尚未对 177 条目标站语料执行全量正文抓取和浏览器验收。
 
 ## 只读探测
 

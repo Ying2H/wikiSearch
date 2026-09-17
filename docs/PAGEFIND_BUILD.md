@@ -1,0 +1,28 @@
+# Pagefind 构建说明
+
+本阶段采用 Pagefind Node API 的 `createIndex()` + `addCustomRecord()` + `writeFiles()` 路线。依赖版本锁定为 1.5.2，Node 要求 `>=20`。
+
+worker 产生的每个页面记录位于：
+
+```text
+data/cache/<site>/<page-key>/record.json
+```
+
+执行构建：
+
+```powershell
+npm ci
+npm run build:index -- --records data/cache --output data/publish/pagefind
+```
+
+构建器会：
+
+1. 按稳定路径顺序读取 `record.json`；
+2. 校验 URL、正文、语言、metadata、filters 和 sort 的类型；
+3. 将每条记录加入 Pagefind；
+4. 写入带进程标识的暂存目录；
+5. 成功后通过同卷目录切换替换输出目录，失败时保留旧输出。
+
+中文记录使用 `language: "zh"`。Pagefind 的 extended 发行版对中文分词提供专门支持；标题权重、标签过滤和删除后旧词消失仍需在真实语料上做浏览器验收。
+
+参考：[Pagefind Node API](https://pagefind.app/docs/node-api/)、[多语言搜索](https://pagefind.app/docs/multilingual/)。
