@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Wikidot 搜索</title>
+    <base target="_blank">
     <style>
       html,
       body {
@@ -21,6 +22,7 @@
     <script>
       (() => {
         const minHeight = 280;
+        const searchRoot = document.getElementById("search");
         const allowedParentOrigins = new Set([
           "http://wymbot.wikidot.com",
           "https://wymbot.wikidot.com"
@@ -61,11 +63,31 @@
           });
         }
 
+        function externalizeResultLinks() {
+          searchRoot.querySelectorAll("a.pagefind-ui__result-link").forEach((link) => {
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+          });
+        }
+
         new ResizeObserver(scheduleHeight).observe(document.documentElement);
         new MutationObserver(scheduleHeight).observe(document.body, {
           childList: true,
           subtree: true,
           attributes: true
+        });
+        new MutationObserver(() => {
+          externalizeResultLinks();
+          scheduleHeight();
+        }).observe(searchRoot, { childList: true, subtree: true });
+        searchRoot.addEventListener("click", (event) => {
+          const link = event.target instanceof Element
+            ? event.target.closest("a.pagefind-ui__result-link")
+            : null;
+          if (link) {
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+          }
         });
         window.addEventListener("load", scheduleHeight);
         window.addEventListener("message", (event) => {
@@ -86,6 +108,7 @@
             load_more: "加载更多"
           }
         });
+        externalizeResultLinks();
         scheduleHeight();
       })();
     </script>
