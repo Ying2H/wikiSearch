@@ -19,6 +19,7 @@ CACHE_DIR="${CACHE_DIR:-data/target-cache}"
 SNAPSHOT_DIR="${SNAPSHOT_DIR:-data/build-input}"
 PAGEFIND_DIR="${PAGEFIND_DIR:-data/publish/pagefind}"
 SITE_DIR="${SITE_DIR:-data/publish/site}"
+DRAIN_ROUNDS="${DRAIN_ROUNDS:-3}"
 PUBLISH=0
 
 usage() {
@@ -52,6 +53,20 @@ if ! flock -n 9; then
     exit 0
 fi
 
+SYNC_ARGS=(
+    --base-url "${SITE_URL}"
+    --manifest-path "${MANIFEST_PATH}"
+    --db "${DB_PATH}"
+    --cache-dir "${CACHE_DIR}"
+    --worker-limit "${WORKER_LIMIT}"
+    --listpages-ttl "${LISTPAGES_TTL}"
+    --transitive-ttl "${TRANSITIVE_TTL}"
+    --other-dynamic-ttl "${OTHER_DYNAMIC_TTL}"
+    --unknown-ttl "${UNKNOWN_TTL}"
+    --min-interval "${MIN_INTERVAL}"
+    --progress
+)
+
 "${PYTHON_BIN}" scripts/sync_once.py \
     --base-url "${SITE_URL}" \
     --manifest-path "${MANIFEST_PATH}" \
@@ -63,9 +78,24 @@ fi
     --transitive-ttl "${TRANSITIVE_TTL}" \
     --other-dynamic-ttl "${OTHER_DYNAMIC_TTL}" \
     --unknown-ttl "${UNKNOWN_TTL}" \
-    --snapshot-dir "${SNAPSHOT_DIR}" \
     --min-interval "${MIN_INTERVAL}" \
     --progress
+
+SNAPSHOT_READY=0
+for ((round = 1; round <= DRAIN_ROUNDS; round += 1)); do
+    if "${PYTHON_BIN}" scripts/sync_once.py "${SYNC_ARGS[@]}" \
+        --skip-scan \
+        --snapshot-dir "${SNAPSHOT_DIR}"; then
+        SNAPSHOT_READY=1
+        break
+    fi
+    echo "Snapshot attempt ${round}/${DRAIN_ROUNDS} found follow-up jobs; draining dependencies."
+done
+
+if [[ "${SNAPSHOT_READY}" != "1" ]]; then
+    echo "Unable to produce a consistent snapshot after ${DRAIN_ROUNDS} rounds." >&2
+    exit 2
+fi
 
 npm run build:index -- --records "${SNAPSHOT_DIR}" --output "${PAGEFIND_DIR}"
 

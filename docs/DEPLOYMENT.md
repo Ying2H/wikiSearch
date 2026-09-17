@@ -46,7 +46,7 @@ ssh -T -i /root/.ssh/wymbot_github_pages_ed25519 git@github.com
 ./scripts/run_pipeline.sh --publish
 ```
 
-该流程依次执行清单扫描、增量抓取、内容一致性快照、Pagefind 构建、静态目录装配和 `gh-pages` 推送。旧静态目录在新构建失败时保留；没有内容变化时不创建新的 Pages 提交。
+该流程依次执行清单扫描、增量抓取、依赖队列排空、内容一致性快照、Pagefind 构建、静态目录装配和 `gh-pages` 推送；依赖传播最多自动排空 3 轮。旧静态目录在新构建失败时保留；没有内容变化时不创建新的 Pages 提交。
 
 确认手动发布成功后安装 systemd 定时器：
 
