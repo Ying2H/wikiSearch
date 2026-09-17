@@ -25,6 +25,15 @@ npm run build:index -- --records data/cache --output data/publish/pagefind
 
 Pagefind 构建失败时，暂存输出会被清理，既有输出目录不会被替换。当前构建器已用两条中文 fixture 验证；尚未对 177 条目标站语料执行全量正文抓取和浏览器验收。
 
+推荐的单轮流程是先生成 SQLite active 页面的快照，再构建索引：
+
+```powershell
+.\.venv\Scripts\python.exe scripts/sync_once.py --scan-pages 1 --worker-limit 10 --snapshot-dir data/build-input
+npm run build:index -- --records data/build-input --output data/publish/pagefind
+```
+
+快照会拒绝 observed version 与 fetched version 不一致、缓存文件缺失或内容哈希不匹配的页面；此时不应继续发布新索引。
+
 ## 只读探测
 
 在项目根目录执行：

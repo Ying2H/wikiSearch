@@ -33,4 +33,11 @@ npm run build:index -- --records data/cache --output data/publish/pagefind
 
 构建器读取 worker 生成的 `record.json`，逐条校验后调用 Pagefind `addCustomRecord`，先写入暂存目录，再切换到输出目录。示例搜索页在 [`web/index.html`](D:/Project/test/search/web/index.html)。
 
+服务器上的单轮同步入口：
+
+```powershell
+.\.venv\Scripts\python.exe scripts/sync_once.py --scan-pages 1 --worker-limit 10 --snapshot-dir data/build-input
+npm run build:index -- --records data/build-input --output data/publish/pagefind
+```
+
 项目已经初始化本地 Git 的 `main` 分支，并配置了 Windows 下的换行和长路径支持；Git 用户名、邮箱和远端地址留给实际维护者设置。运行时 Python 依赖目前全部来自标准库，依赖清单保留在 `requirements.txt`、`requirements-dev.txt` 和 `pyproject.toml`，便于后续加入 Pagefind 构建链。

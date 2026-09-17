@@ -342,6 +342,42 @@ class StateStore:
             raise KeyError(f"unknown page row: {page_row_id}")
         return row
 
+    def active_pages(self, site_id: str) -> list[sqlite3.Row]:
+        return list(
+            self.db.execute(
+                """
+                SELECT * FROM pages
+                WHERE site_id = ? AND status = 'active' AND content_hash IS NOT NULL
+                ORDER BY id
+                """,
+                (site_id,),
+            ).fetchall()
+        )
+
+    def next_corpus_generation(self) -> int:
+        row = self.db.execute("SELECT COALESCE(MAX(corpus_generation), 0) + 1 AS next FROM builds").fetchone()
+        return int(row["next"])
+
+    def record_build(
+        self,
+        *,
+        corpus_generation: int,
+        manifest_hash: str,
+        status: str,
+        build_id: str | None = None,
+        published_at: int | None = None,
+    ) -> int:
+        cursor = self.db.execute(
+            """
+            INSERT INTO builds(
+                corpus_generation, manifest_hash, build_id, status, published_at, created_at
+            ) VALUES(?, ?, ?, ?, ?, ?)
+            """,
+            (corpus_generation, manifest_hash, build_id, status, published_at, _now()),
+        )
+        self.db.commit()
+        return int(cursor.lastrowid)
+
     def begin_scan(self, site_id: str, *, inventory_id: str, overlap_seconds: int = 900) -> int:
         cursor = self.db.execute(
             """

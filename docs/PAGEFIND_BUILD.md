@@ -8,6 +8,8 @@ worker 产生的每个页面记录位于：
 data/cache/<site>/<page-key>/record.json
 ```
 
+正式构建前，优先使用 `scripts/sync_once.py --snapshot-dir ...` 生成快照目录；快照目录中的 `records/**/record.json` 只包含 active、版本一致且哈希校验通过的页面。
+
 执行构建：
 
 ```powershell

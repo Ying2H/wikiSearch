@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from search_sync.crawler.wikidot import WikidotSite
 from search_sync.extract.content import extract_main_content, stable_record_hash
+from search_sync.sync.cache import page_cache_dir, write_text_atomic
 from search_sync.sync.classifier import classify_source
 from search_sync.sync.state import StateStore
 
@@ -23,20 +22,6 @@ class JobResult:
     page_id: int | None = None
     content_hash: str | None = None
     error: str | None = None
-
-
-def _cache_key(fullname: str) -> str:
-    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", fullname).strip("_") or "page"
-    digest = hashlib.sha256(fullname.encode("utf-8")).hexdigest()[:12]
-    return f"{safe[:80]}-{digest}"
-
-
-def _write_text_atomic(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
-        handle.write(content)
-        temporary = Path(handle.name)
-    temporary.replace(path)
 
 
 class FetchWorker:
@@ -63,10 +48,10 @@ class FetchWorker:
         }
 
     def _cache_page(self, job: Any, rendered_html: str, source: str, record: dict[str, Any]) -> None:
-        page_dir = self.cache_dir / str(job["site_id"]) / _cache_key(str(job["fullname"]))
-        _write_text_atomic(page_dir / "rendered.html", rendered_html)
-        _write_text_atomic(page_dir / "source.ftml", source)
-        _write_text_atomic(page_dir / "record.json", json.dumps(record, ensure_ascii=False, indent=2) + "\n")
+        page_dir = page_cache_dir(self.cache_dir, str(job["site_id"]), str(job["fullname"]))
+        write_text_atomic(page_dir / "rendered.html", rendered_html)
+        write_text_atomic(page_dir / "source.ftml", source)
+        write_text_atomic(page_dir / "record.json", json.dumps(record, ensure_ascii=False, indent=2) + "\n")
 
     def process_job(self, job: Any) -> JobResult:
         job_id = int(job["id"])
