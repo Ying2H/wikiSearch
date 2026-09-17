@@ -1,6 +1,18 @@
 # 服务器抓取与 GitHub Pages 部署
 
-部署拓扑固定为：服务器在 `/root/code/wymboTSearch/` 保存 SQLite、缓存和构建产物，定时从公开 Wikidot 站点抓取；服务器把最终的静态目录推送到 GitHub 仓库的 `gh-pages` 分支；GitHub Pages 从该分支根目录托管搜索页。
+本项目采用“服务器抓取和构建，GitHub Pages 托管静态站点”的部署方式：
+
+```text
+公开 Wikidot 站点
+        ↓ 定时读取清单和页面
+生产服务器 /root/code/wymboTSearch/
+        ↓ 生成 Orama 静态索引
+GitHub 仓库 gh-pages 分支
+        ↓
+GitHub Pages
+```
+
+搜索页地址：`https://ying2h.github.io/wikiSearch/`
 
 ## GitHub Pages 设置
 
@@ -8,63 +20,129 @@
 
 1. Settings → Pages；
 2. Source 选择 **Deploy from a branch**；
-3. Branch 选择 `gh-pages`，目录选择 `/ (root)`。
+3. Branch 选择 `gh-pages`；
+4. 目录选择 `/ (root)`。
 
-发布后地址通常为 `https://ying2h.github.io/wikiSearch/`。搜索页资源使用相对路径，能适配这个项目子路径。
+搜索页使用相对资源路径，因此可部署在仓库项目页路径 `/wikiSearch/` 下。
 
-## 服务器首次配置
+## 服务器要求
 
-服务器需要 Python 3.10+、Node.js 20+、npm、`flock` 和 Git。Ubuntu 自带的 Node 18 不满足项目声明的 Node 版本要求，应先安装 Node 20 或更高的受支持 LTS 版本。
+- Python 3.10 或更高版本；
+- Node.js 20 或更高版本；
+- npm、Git 和 `flock`；
+- 能够访问目标 Wikidot 站点和 GitHub；
+- 服务器上的项目目录为 `/root/code/wymboTSearch/`。
 
-进入项目目录后执行：
+## 首次安装
+
+将仓库放置到服务器目录后执行：
 
 ```bash
 cd /root/code/wymboTSearch
-git config user.name work
-git config user.email work@local
 chmod +x scripts/*.sh deploy/install-systemd.sh
 ./scripts/bootstrap.sh
 ```
 
+`bootstrap.sh` 会创建 Python 虚拟环境并根据锁定清单安装 Python 和 Node 依赖。
+
 ## GitHub 写入授权
 
-自动发布只需要这个仓库的写入权限。建议在服务器生成一把仅用于本仓库的独立 SSH deploy key，把 `.pub` 公钥添加到仓库 Settings → Deploy keys，并勾选 **Allow write access**；不要在聊天中粘贴私钥或个人 Token。然后在服务器执行：
+服务器需要能够读取仓库并向 `gh-pages` 分支推送。推荐使用只针对该仓库的 SSH deploy key：
+
+1. 在服务器生成独立 SSH 密钥；
+2. 将公钥添加到仓库 Settings → Deploy keys；
+3. 开启 **Allow write access**；
+4. 将仓库远端设置为：
+
+   ```bash
+   git remote set-url origin git@github.com:Ying2H/wikiSearch.git
+   ```
+
+发布脚本默认使用 `/root/.ssh/wymbot_github_pages_ed25519`。如果密钥路径不同，在运行发布命令前设置：
 
 ```bash
-git remote add origin git@github.com:Ying2H/wikiSearch.git
-git push -u origin main
-ssh -T -i /root/.ssh/wymbot_github_pages_ed25519 git@github.com
+export GIT_SSH_COMMAND='ssh -i /path/to/deploy_key -o IdentitiesOnly=yes'
 ```
 
-如果 `origin` 已存在，使用 `git remote set-url origin git@github.com:Ying2H/wikiSearch.git`。
+不要将私钥、访问令牌或其他认证信息提交到仓库。
 
-## 首次构建和自动同步
+## 手动部署
 
-先手动执行一次，确认抓取、索引和推送全部成功：
+更新服务器代码并执行一次完整抓取、构建和发布：
 
 ```bash
+cd /root/code/wymboTSearch
+GIT_SSH_COMMAND='ssh -i /root/.ssh/wymbot_github_pages_ed25519 -o IdentitiesOnly=yes' \
+  git pull --ff-only origin main
+npm ci
 ./scripts/run_pipeline.sh --publish
 ```
 
-该流程依次执行清单扫描、增量抓取、依赖队列排空、内容一致性快照、Orama 构建、静态目录装配和 `gh-pages` 推送；依赖传播最多自动排空 3 轮。旧静态目录在新构建失败时保留；没有内容变化时不创建新的 Pages 提交。
+流程包括：
 
-确认手动发布成功后安装 systemd 定时器：
+1. 扫描 Wikidot 页面清单；
+2. 抓取需要更新的 HTML 和 FTML；
+3. 排空依赖任务并生成一致性快照；
+4. 构建 Orama JSON 索引和浏览器脚本；
+5. 装配静态站点；
+6. 将站点推送到 `gh-pages`。
+
+没有语料或构建输入变化时，流程会跳过索引构建和 GitHub Pages 推送。
+
+只构建已有快照而不发布：
 
 ```bash
-./deploy/install-systemd.sh
-systemctl list-timers wymbot-search-sync.timer
+npm run build:index -- --records data/build-input --output data/publish/orama
+./.venv/bin/python scripts/assemble_site.py \
+  --orama-dir data/publish/orama \
+  --manifest data/build-input/manifest.json \
+  --output-dir data/publish/site
+```
+
+## 安装和启动自动同步
+
+安装 systemd 单元并立即启用定时器：
+
+```bash
+cd /root/code/wymboTSearch
+sudo ./deploy/install-systemd.sh
+```
+
+查看定时器和服务：
+
+```bash
+systemctl list-timers wymbot-search-sync.timer --all
+systemctl status wymbot-search-sync.timer --no-pager
+systemctl status wymbot-search-sync.service --no-pager
 journalctl -u wymbot-search-sync.service -n 100 --no-pager
 ```
 
-定时器开机后约 5 分钟首次运行，之后每轮完成后间隔 10 分钟，因此 `/pagelist` 清单约每 10 分钟确认一次。带有 `ListPages` 的页面通过 1800 秒 TTL 约每 30 分钟复核一次；间接依赖页面同样按 30 分钟处理，其他动态页面默认 60 分钟。`data/pipeline.lock` 防止上一轮尚未结束时并发抓取。目标站请求间隔默认 2 秒，可通过 systemd unit 中的环境变量调整。
+默认配置是：
 
-重构或维护期间可以暂停当前调度，不删除开机启用配置：
+- 系统启动约 5 分钟后执行首轮；
+- 每次服务激活后约 10 分钟再次执行；
+- `/pagelist` 通常每 10 分钟确认一次；
+- 直接包含 `ListPages` 的页面 TTL 为 1800 秒，即约 30 分钟；
+- 间接动态页面 TTL 为 1800 秒；
+- 其他动态页面和无法确定类型的页面 TTL 为 3600 秒，即约 60 分钟；
+- 站点请求之间默认间隔 2 秒。
+
+## 回滚
+
+如果新索引构建或发布失败，发布脚本不会替换上一份成功的静态站点。GitHub Pages 仍然提供上一版本。
+
+检查服务器上的发布历史：
 
 ```bash
-systemctl stop wymbot-search-sync.timer wymbot-search-sync.service
-systemctl start wymbot-search-sync.timer
+git -C /root/code/wymboTSearch/data/github-pages log --oneline --decorate -10
 ```
 
-## 回滚与故障处理
+必要时可在 GitHub 仓库的 `gh-pages` 分支恢复上一份发布提交。回滚代码后重新执行一次 `./scripts/run_pipeline.sh --publish`，以保证代码、索引和入口文件版本一致。
 
-服务器上的 `data/target-cache` 和 SQLite 不应提交到 GitHub。若新索引构建失败，发布脚本不会推送新 `gh-pages` 提交，GitHub Pages 继续使用上一版静态文件。需要回滚时，在 Pages 仓库历史中恢复上一条 `gh-pages` 提交即可。
+## 维护注意事项
+
+- `data/` 包含 SQLite、缓存和构建产物，不应推送到 GitHub；
+- 定时器与服务使用 `data/pipeline.lock` 避免同步任务重叠；
+- 生产同步使用只读 Wikidot 请求，不修改目标站点；
+- GitHub Pages 静态索引仅适用于公开内容；
+- 更新 systemd 文件后必须执行 `systemctl daemon-reload`，再重启定时器。

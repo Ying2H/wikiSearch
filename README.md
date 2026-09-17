@@ -1,67 +1,110 @@
-# Wikidot Orama Sync
+# Wikidot Orama Search
 
-这是面向公开 Wikidot 站点的增量同步与静态搜索基础设施。当前交付的是 P0 探测结果和 P1 的第一轮基础实现：
+面向公开 Wikidot 站点的增量抓取、内容同步和静态全文搜索系统。服务器定期读取目标站点的页面清单和页面内容，生成 Orama 搜索索引，并将完整静态站点发布到 GitHub Pages。
 
-- 解析 `html_manifest` 与 Wikidot AMC 的 ListPages 响应，不依赖固定行格式；
-- 读取页面渲染 HTML，提取 `WIKIREQUEST.info.pageId`；
-- 通过只读 `ViewSourceModule` 获取 FTML 源码；
-- 使用 SQLite 保存观察版本、抓取版本和去重任务；
-- 通过租约 worker 抓取渲染 HTML/FTML，并原子写入本地缓存；
-- 记录 include 依赖，传播依赖变更，并为动态页面安排 TTL 任务；
-- 对 ListPages、include 与未知模块做保守的动态分类；
-- 为正文提取和稳定记录哈希提供可离线测试的基础函数。
-- 使用 Orama Mandarin tokenizer 从缓存记录生成中文静态搜索索引，并在浏览器内完成搜索。
+## 功能
 
-当前没有自动向 Wikidot 创建页面或修改站点；服务器发布流程见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)，目标站能力探测见 [docs/CAPABILITY_REPORT.md](docs/CAPABILITY_REPORT.md)，运行边界见 [docs/OPERATIONS.md](docs/OPERATIONS.md)。
+- 解析 Wikidot HTML 清单和 AMC `ListPages` 响应；
+- 读取页面渲染 HTML 和只读 FTML 源码；
+- 使用 SQLite 保存页面版本、抓取任务、缓存状态和依赖关系；
+- 支持增量抓取、任务租约、失败重试和动态页面 TTL 刷新；
+- 从一致性快照生成 Orama JSON 倒排索引；
+- 使用中文 Mandarin tokenizer，浏览器端完成搜索、排序和高亮；
+- 支持 GitHub Pages 静态托管以及 Wikidot iframe 嵌入；
+- 搜索结果链接在 iframe 外部的新窗口中打开。
 
-在 Wikidot 中嵌入搜索页的代码和自适应高度说明见 [docs/WIKIDOT_IFRAME.md](docs/WIKIDOT_IFRAME.md)。
+## 系统结构
 
-## 本地环境与运行
+```text
+Wikidot 清单
+    ↓
+SQLite 版本状态与任务队列
+    ↓
+HTML / FTML 缓存
+    ↓
+一致性快照
+    ↓
+Orama 索引 + 静态搜索页
+    ↓
+GitHub Pages
+```
+
+抓取服务器不提供在线搜索 API。搜索页、索引和前端脚本均为静态资源；索引中只包含公开页面内容。
+
+## 本地使用
+
+Windows：
 
 ```powershell
 .\scripts\bootstrap.ps1
 .\.venv\Scripts\python.exe -m unittest discover -s . -t . -v
-.\.venv\Scripts\python.exe scripts/probe_site.py --base-url http://wymbot.wikidot.com --manifest-path /pagelist --max-pages 2 --min-interval 0
 ```
 
-Linux 服务器可使用等价的 `scripts/bootstrap.sh` 初始化 Python 虚拟环境和 Node 依赖：
+Linux：
 
 ```bash
 ./scripts/bootstrap.sh
 ./.venv/bin/python -m unittest discover -s . -t . -v
 ```
 
-`probe_site.py` 是只读探测；生产同步器尚未接入后台调度和目标站全量正文抓取。
+只读探测目标站点：
 
-Orama 构建：
+```bash
+python scripts/probe_site.py \
+  --base-url http://wymbot.wikidot.com \
+  --manifest-path /pagelist \
+  --max-pages 2 \
+  --min-interval 2
+```
 
-```powershell
+## 构建静态搜索站点
+
+先生成一致性快照，再构建 Orama 索引和浏览器脚本：
+
+```bash
 npm ci
-npm run build:index -- --records data/build-input --output data/publish/orama
+npm run build:index \
+  -- --records data/build-input \
+  --output data/publish/orama
 ```
 
-构建器读取一致性快照中的 `record.json`，逐条校验后生成 Orama JSON 倒排索引，并使用 esbuild 打包浏览器搜索脚本；索引和脚本先写入暂存目录，再切换到输出目录。示例搜索页在 [`web/index.html`](D:/Project/test/search/web/index.html)。
+组合为可托管目录：
 
-组合成可直接托管的站点目录：
-
-```powershell
-.\.venv\Scripts\python.exe scripts/assemble_site.py `
-  --orama-dir data/publish/orama `
-  --manifest data/target-snapshot-v3/manifest.json `
-  --output-dir data/target-site
+```bash
+./.venv/bin/python scripts/assemble_site.py \
+  --orama-dir data/publish/orama \
+  --manifest data/build-input/manifest.json \
+  --output-dir data/publish/site
 ```
 
-服务器上的单轮同步入口：
+构建细节见 [Orama 构建说明](docs/ORAMA_BUILD.md)。
 
-```powershell
-.\.venv\Scripts\python.exe scripts/sync_once.py --scan-pages 1 --worker-limit 10 --snapshot-dir data/build-input
-npm run build:index -- --records data/build-input --output data/publish/orama
+## 部署
+
+生产部署流程、GitHub Pages 配置和服务器更新方式见 [服务器抓取与 GitHub Pages 部署](docs/DEPLOYMENT.md)。
+
+systemd 定时任务的启动、暂停、频率调整和日志查看见 [运行与定时任务说明](docs/OPERATIONS.md)。
+
+Wikidot iframe 嵌入代码见 [Wikidot iframe 接入](docs/WIKIDOT_IFRAME.md)。
+
+目标站点的接口行为和采集边界见 [目标站能力报告](docs/CAPABILITY_REPORT.md)。系统设计和一致性约束见 [搜索系统设计](docs/SEARCH_DESIGN.md)。
+
+## 目录
+
+```text
+builder/                 Orama 索引和浏览器脚本构建器
+deploy/                  systemd 服务与定时器安装文件
+scripts/                 同步、快照、构建、装配和发布入口
+src/search_sync/         抓取、解析、状态管理和发布代码
+tests/                   离线测试与 fixture
+web/                     静态搜索页源文件
+docs/                    部署、运行、搜索和目标站说明
 ```
 
-已有缓存需要重新导出快照时，可跳过网络扫描：
+## 安全边界
 
-```powershell
-.\.venv\Scripts\python.exe scripts/export_snapshot.py --db data/target.sqlite3 --cache-dir data/target-cache --site-id wymbot.wikidot.com --output-dir data/target-snapshot
-```
-
-项目已经初始化本地 Git 的 `main` 分支，并配置了 Windows 下的换行和长路径支持；Git 用户名和邮箱已设置为 `work` / `work@local`。运行时 Python 依赖目前全部来自标准库，Node 侧使用锁定版本的 Orama 和 esbuild 构建静态搜索资源。
+- 只读取公开 Wikidot 页面，不调用编辑、保存、删除或上传接口；
+- GitHub Pages 上的静态索引不是权限系统；
+- 生产发布前应确认索引中的 URL 属于目标站点；
+- HTTP 200 不代表页面内容有效，软 404、登录页、权限页和限流响应需要单独识别；
+- 抓取失败、超时或解析错误不能作为删除页面的依据。

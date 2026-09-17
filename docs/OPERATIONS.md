@@ -1,91 +1,211 @@
-# 初期运行说明
+# 运行与定时任务说明
 
-## Git 与虚拟环境
+本文说明同步服务、Orama 构建和 systemd 定时任务的日常操作。生产目录为 `/root/code/wymboTSearch/`。
 
-仓库使用本地 Git `main` 分支，`.venv/`、`data/`、缓存和构建产物已加入忽略规则。首次接手时：
+## 定时任务组成
 
-```powershell
-git config user.name "你的姓名"
-git config user.email "你的邮箱"
-.\scripts\bootstrap.ps1
-```
+项目使用两个 systemd 单元：
 
-Linux 服务器使用：
+- `wymbot-search-sync.timer`：负责按周期激活服务；
+- `wymbot-search-sync.service`：以一次性任务执行抓取、构建和 GitHub Pages 发布。
+
+服务不是常驻进程。每次服务完成后退出，下一次由 timer 再次激活。
+
+## 启动、暂停和停止
+
+启动定时任务：
 
 ```bash
-git config user.name "work"
-git config user.email "work@local"
-chmod +x scripts/bootstrap.sh
-./scripts/bootstrap.sh
+sudo systemctl start wymbot-search-sync.timer
 ```
 
-当前发布流程使用服务器上的 GitHub deploy key 自动推送 `gh-pages`；可在服务器上用同一 bootstrap 脚本从干净 checkout 重建环境。`requirements.txt` 当前为空依赖（仅标准库），Node 侧已在 `package.json`/`package-lock.json` 中锁定 Orama 和 esbuild。
+暂停当前定时任务，但保留开机启用状态：
 
-抓取 worker 只处理 SQLite 中已入队的页面；成功时把渲染 HTML、FTML 和标准化记录写入缓存，源码或页面请求失败时保留任务并按退避时间重试。当前 worker 尚未作为常驻服务或系统定时任务安装。
-
-首次全量初始化可使用（目标站当前约需 10–15 分钟）：
-
-```powershell
-.\.venv\Scripts\python.exe scripts/sync_once.py --db data/target.sqlite3 --cache-dir data/target-cache --scan-pages 2 --worker-limit 177 --snapshot-dir data/target-snapshot --min-interval 2 --progress
+```bash
+sudo systemctl stop wymbot-search-sync.timer
+sudo systemctl stop wymbot-search-sync.service
 ```
 
-后续只处理已有队列时加 `--skip-scan`。HTTP 200 但无 Wikidot page ID 的页面会进入 `quarantined`，对应 job 进入 `blocked`，不会无限重试，也不会作为 active 页面进入快照。
+永久停用并立即停止：
 
-## Orama 构建
+```bash
+sudo systemctl disable --now wymbot-search-sync.timer
+```
 
-先完成一次同步并确保 `data/cache/**/record.json` 是一致快照，再执行：
+重新设置为开机自动启动：
+
+```bash
+sudo systemctl enable --now wymbot-search-sync.timer
+```
+
+查看是否运行：
+
+```bash
+systemctl is-active wymbot-search-sync.timer
+systemctl is-enabled wymbot-search-sync.timer
+systemctl status wymbot-search-sync.timer --no-pager
+```
+
+## 修改清单扫描频率
+
+默认 timer 文件为：
+
+```text
+deploy/systemd/wymbot-search-sync.timer
+```
+
+其中：
+
+```ini
+OnBootSec=5min
+OnUnitActiveSec=10min
+```
+
+- `OnBootSec` 控制系统启动后的首次执行延迟；
+- `OnUnitActiveSec` 控制服务激活后的下一次执行间隔。
+
+例如改为每 30 分钟检查一次：
+
+```ini
+OnBootSec=5min
+OnUnitActiveSec=30min
+```
+
+修改仓库中的 timer 文件后，在服务器执行：
+
+```bash
+cd /root/code/wymboTSearch
+GIT_SSH_COMMAND='ssh -i /root/.ssh/wymbot_github_pages_ed25519 -o IdentitiesOnly=yes' \
+  git pull --ff-only origin main
+sudo ./deploy/install-systemd.sh
+```
+
+安装脚本会复制 systemd 文件、执行 `daemon-reload` 并启用 timer。
+
+如果只想临时调整服务器，不修改仓库文件，可以直接编辑：
+
+```bash
+sudoedit /etc/systemd/system/wymbot-search-sync.timer
+sudo systemctl daemon-reload
+sudo systemctl restart wymbot-search-sync.timer
+systemctl list-timers wymbot-search-sync.timer --all
+```
+
+直接编辑 `/etc/systemd/system/` 的修改可能会在下次运行安装脚本时被仓库版本覆盖；长期修改应同步更新 `deploy/systemd/`。
+
+## 修改动态页面刷新频率
+
+动态页面 TTL 位于：
+
+```text
+deploy/systemd/wymbot-search-sync.service
+```
+
+默认值：
+
+```ini
+Environment=LISTPAGES_TTL=1800
+Environment=TRANSITIVE_TTL=1800
+Environment=OTHER_DYNAMIC_TTL=3600
+Environment=UNKNOWN_TTL=3600
+```
+
+单位为秒：
+
+- `LISTPAGES_TTL`：直接包含 `ListPages` 的页面；
+- `TRANSITIVE_TTL`：通过 include 间接包含动态内容的页面；
+- `OTHER_DYNAMIC_TTL`：其他已识别动态页面；
+- `UNKNOWN_TTL`：源码无法可靠分类的页面。
+
+例如将直接 ListPages 页面改为 15 分钟：
+
+```ini
+Environment=LISTPAGES_TTL=900
+```
+
+更新 service 文件后执行：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart wymbot-search-sync.timer
+```
+
+TTL 只影响动态页面重新抓取的时间，不改变 timer 激活服务的总频率。
+
+## 手动执行一轮
+
+执行抓取、构建和发布：
+
+```bash
+cd /root/code/wymboTSearch
+./scripts/run_pipeline.sh --publish
+```
+
+只抓取并在本地构建，不推送 GitHub Pages：
+
+```bash
+./scripts/run_pipeline.sh --no-publish
+```
+
+通过 systemd 手动启动服务前，建议先暂停 timer，避免两个服务同时激活：
+
+```bash
+sudo systemctl stop wymbot-search-sync.timer
+sudo systemctl start wymbot-search-sync.service
+sudo systemctl start wymbot-search-sync.timer
+```
+
+同步脚本内部还使用 `data/pipeline.lock` 防止重复运行。
+
+## 日志和故障定位
+
+查看最近日志：
+
+```bash
+journalctl -u wymbot-search-sync.service -n 100 --no-pager
+```
+
+实时查看日志：
+
+```bash
+journalctl -u wymbot-search-sync.service -f
+```
+
+查看 timer 最近和下一次执行：
+
+```bash
+systemctl list-timers wymbot-search-sync.timer --all
+```
+
+构建失败时，暂存目录会被清理，上一份成功的 `data/publish/site` 不会被替换，也不会推送新的 `gh-pages` 提交。
+
+## 数据和索引目录
+
+```text
+data/target.sqlite3       SQLite 状态数据库
+data/target-cache/        页面 HTML、FTML 和标准化记录缓存
+data/build-input/         一致性快照
+data/publish/orama/       Orama 索引和浏览器脚本
+data/publish/site/        待发布静态站点
+data/github-pages/        gh-pages 本地工作树
+```
+
+`data/` 已被 Git 忽略，不应手动提交。删除缓存或 SQLite 前应先确认备份和重新抓取成本。
+
+## 本地离线测试
 
 ```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s . -t . -v
 npm ci
 npm run build:index -- --records data/build-input --output data/publish/orama
 ```
 
-Orama 构建失败时，暂存输出会被清理，既有输出目录不会被替换。空正文页面会写入快照排除清单而不进入搜索索引；本次目标站初始化最终索引了 174 条记录，排除了 2 条空正文页面。
-
-构建后组合静态入口和索引资源：
-
-```powershell
-.\.venv\Scripts\python.exe scripts/assemble_site.py --orama-dir data/publish/orama --manifest data/target-snapshot-v3/manifest.json --output-dir data/target-site
-```
-
-本地 HTTP 验收应至少检查 `/`、`/orama/search.js`、`/orama/search-index.json` 和 `/build.json` 均返回 200。正式托管前仍需浏览器验证中文查询、结果跳转、iframe 高度和旧索引回滚。
-
-推荐的单轮流程是先生成 SQLite active 页面的快照，再构建索引：
-
-```powershell
-.\.venv\Scripts\python.exe scripts/sync_once.py --scan-pages 1 --worker-limit 10 --snapshot-dir data/build-input
-npm run build:index -- --records data/build-input --output data/publish/orama
-```
-
-快照会拒绝 observed version 与 fetched version 不一致、缓存文件缺失或内容哈希不匹配的页面；此时不应继续发布新索引。
-
-若只修改了索引提取或过滤逻辑，可使用已有缓存重新导出快照，不需要重新请求目标站：
-
-```powershell
-.\.venv\Scripts\python.exe scripts/export_snapshot.py --db data/target.sqlite3 --cache-dir data/target-cache --site-id wymbot.wikidot.com --output-dir data/build-input
-```
-
-## 只读探测
-
-在项目根目录执行：
-
-```powershell
-python scripts/probe_site.py --base-url http://wymbot.wikidot.com --manifest-path /pagelist --max-pages 2 --min-interval 0
-```
-
-加入 `--check-amc` 会额外发送一次 `list/ListPagesModule` 请求，用于确认 AMC 能力。生产环境应恢复至少 2 秒的站点级请求间隔，并遵循站点返回的 `Retry-After`。
-
-## 离线测试
-
-```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s . -t . -v
-```
-
-请求层、解析层和状态层分开；解析函数不隐藏网络请求。目标站探测失败时，先使用 `tests/fixtures/` 完成离线开发，不要把 fixture 结果当作现场能力。
+Orama 索引和静态装配细节见 [Orama 构建说明](ORAMA_BUILD.md)。
 
 ## 安全边界
 
-- 一期只访问公开页面，不保存登录凭据，不调用编辑/保存/删除接口。
-- 静态索引发布前必须校验 URL 仍属于配置的站点白名单。
-- 任何页面返回 HTTP 200 但缺少 `WIKIREQUEST.info.pageId` 时，按软错误处理，不能作为删除证据。
-- 抓取失败、超时、解析失败和权限异常都不能批量 tombstone 页面。
+- 同步器只读取公开 Wikidot 页面；
+- 不保存 Wikidot 登录凭据，不调用编辑、保存、删除或上传接口；
+- GitHub Pages 上的索引不能保护私有内容；
+- HTTP 200 但缺少有效 Wikidot 页面标识的响应不能直接视为有效页面或删除证据；
+- 发布前应校验索引 URL 属于目标站点。

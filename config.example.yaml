@@ -1,4 +1,4 @@
-# 一期默认配置：只读公开页面，不登录，不向 Wikidot 写入内容。
+# 只读取公开页面，不登录，不向 Wikidot 写入内容。
 site_url: http://wymbot.wikidot.com
 manifest:
   provider: html_manifest
@@ -21,4 +21,4 @@ storage:
   publish_dir: data/publish
 index:
   records_dir: data/cache
-  output_dir: data/publish/pagefind
+  output_dir: data/publish/orama
