@@ -14,7 +14,7 @@ if (-not (Test-Path -LiteralPath $venvPython)) {
 
 if (Test-Path -LiteralPath (Join-Path $root "package-lock.json")) {
     if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-        throw "Node.js/npm is required to install the Pagefind builder dependency."
+        throw "Node.js/npm is required to install the Orama search builder dependencies."
     }
     Push-Location $root
     try {

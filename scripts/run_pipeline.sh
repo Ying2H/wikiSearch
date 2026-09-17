@@ -17,7 +17,7 @@ UNKNOWN_TTL="${UNKNOWN_TTL:-3600}"
 DB_PATH="${DB_PATH:-data/target.sqlite3}"
 CACHE_DIR="${CACHE_DIR:-data/target-cache}"
 SNAPSHOT_DIR="${SNAPSHOT_DIR:-data/build-input}"
-PAGEFIND_DIR="${PAGEFIND_DIR:-data/publish/pagefind}"
+ORAMA_DIR="${ORAMA_DIR:-data/publish/orama}"
 SITE_DIR="${SITE_DIR:-data/publish/site}"
 DRAIN_ROUNDS="${DRAIN_ROUNDS:-3}"
 PUBLISH=0
@@ -43,10 +43,10 @@ elif ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
     exit 1
 fi
 
-command -v npm >/dev/null 2>&1 || { echo "npm is required for Pagefind builds" >&2; exit 1; }
+command -v npm >/dev/null 2>&1 || { echo "npm is required for Orama builds" >&2; exit 1; }
 command -v flock >/dev/null 2>&1 || { echo "flock is required to serialize pipeline runs" >&2; exit 1; }
 
-mkdir -p "$(dirname "${DB_PATH}")" "${CACHE_DIR}" "${SNAPSHOT_DIR}" "$(dirname "${PAGEFIND_DIR}")" "$(dirname "${SITE_DIR}")"
+mkdir -p "$(dirname "${DB_PATH}")" "${CACHE_DIR}" "${SNAPSHOT_DIR}" "$(dirname "${ORAMA_DIR}")" "$(dirname "${SITE_DIR}")"
 exec 9>"${ROOT_DIR}/data/pipeline.lock"
 if ! flock -n 9; then
     echo "Another pipeline run is active; exiting without overlap."
@@ -99,19 +99,21 @@ fi
 
 NEW_MANIFEST_HASH="$(${PYTHON_BIN} -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["manifest_hash"])' "${SNAPSHOT_DIR}/manifest.json")"
 NEW_ENTRYPOINT_HASH="$(${PYTHON_BIN} -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest())' "web/index.html")"
+NEW_BUILD_CONFIG_HASH="$(${PYTHON_BIN} -c 'import hashlib,pathlib,sys; h=hashlib.sha256(); [h.update(pathlib.Path(p).read_bytes()) for p in sys.argv[1:]]; print(h.hexdigest())' builder/build.mjs builder/search-tokenizer.js web/search.js package.json package-lock.json)"
 if [[ -f "${SITE_DIR}/build.json" ]]; then
-    OLD_SIGNATURE="$(${PYTHON_BIN} -c 'import json,sys; p=json.load(open(sys.argv[1], encoding="utf-8")); print(str(p.get("manifest_hash", "")) + ":" + str(p.get("entrypoint_hash", "")))' "${SITE_DIR}/build.json")"
-    if [[ "${OLD_SIGNATURE}" == "${NEW_MANIFEST_HASH}:${NEW_ENTRYPOINT_HASH}" ]]; then
-        echo "Corpus and entrypoint are unchanged; skip Pagefind rebuild and GitHub Pages push."
+    OLD_SIGNATURE="$(${PYTHON_BIN} -c 'import json,sys; p=json.load(open(sys.argv[1], encoding="utf-8")); print(":".join(str(p.get(k, "")) for k in ("manifest_hash", "entrypoint_hash", "build_config_hash")))' "${SITE_DIR}/build.json")"
+    if [[ "${OLD_SIGNATURE}" == "${NEW_MANIFEST_HASH}:${NEW_ENTRYPOINT_HASH}:${NEW_BUILD_CONFIG_HASH}" ]]; then
+        echo "Corpus, entrypoint, and Orama build inputs are unchanged; skip rebuild and GitHub Pages push."
         exit 0
     fi
 fi
 
-npm run build:index -- --records "${SNAPSHOT_DIR}" --output "${PAGEFIND_DIR}"
+npm run build:index -- --records "${SNAPSHOT_DIR}" --output "${ORAMA_DIR}"
 
 "${PYTHON_BIN}" scripts/assemble_site.py \
-    --pagefind-dir "${PAGEFIND_DIR}" \
+    --orama-dir "${ORAMA_DIR}" \
     --manifest "${SNAPSHOT_DIR}/manifest.json" \
+    --build-config-hash "${NEW_BUILD_CONFIG_HASH}" \
     --output-dir "${SITE_DIR}"
 
 if [[ "${PUBLISH}" == "1" ]]; then

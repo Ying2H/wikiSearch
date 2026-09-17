@@ -1,12 +1,28 @@
 import { promises as fs } from "node:fs";
+import { gzipSync } from "node:zlib";
 import path from "node:path";
 import process from "node:process";
-import * as pagefind from "pagefind";
+import { build as bundle } from "esbuild";
+import { create, insertMultiple, save } from "@orama/orama";
+import { createTokenizer } from "@orama/tokenizers/mandarin";
+import { createSearchTokenizer } from "./search-tokenizer.js";
+
+const SCHEMA_VERSION = 2;
+const TOKENIZER_ID = "@orama/tokenizers/mandarin+lowercase-v1";
+const SEARCH_SCHEMA = {
+  id: "string",
+  title: "string",
+  fullname: "string",
+  category: "string",
+  page_type: "string",
+  content: "string",
+  url: "string",
+};
 
 function parseArgs(argv) {
   const args = {
     records: "data/cache",
-    output: "data/publish/pagefind",
+    output: "data/publish/orama",
   };
   for (let i = 0; i < argv.length; i += 1) {
     const value = argv[i];
@@ -55,6 +71,20 @@ function validateRecord(record, sourcePath) {
   }
 }
 
+function toDocument(record) {
+  const meta = record.meta ?? {};
+  const filters = record.filters ?? {};
+  return {
+    id: record.url,
+    title: meta.title ?? "",
+    fullname: meta.fullname ?? "",
+    category: meta.category ?? "",
+    page_type: Array.isArray(filters.page_type) ? filters.page_type.join(" ") : "",
+    content: record.content,
+    url: record.url,
+  };
+}
+
 async function pathExists(target) {
   try {
     await fs.access(target);
@@ -85,32 +115,66 @@ async function publishDirectory(staged, output) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (typeof Intl?.Segmenter !== "function") {
+    throw new Error("Intl.Segmenter is required by the Mandarin tokenizer");
+  }
+
   const recordsRoot = path.resolve(args.records);
   const output = path.resolve(args.output);
   const staged = `${output}.staged-${process.pid}-${Date.now()}`;
   const files = await findRecordFiles(recordsRoot);
   if (files.length === 0) throw new Error(`No record.json files found below ${recordsRoot}`);
 
-  const { index } = await pagefind.createIndex({
-    writePlayground: false,
-    verbose: false,
+  const documents = [];
+  for (const file of files) {
+    const record = JSON.parse(await fs.readFile(file, "utf8"));
+    validateRecord(record, file);
+    documents.push(toDocument(record));
+  }
+
+  const database = create({
+    schema: SEARCH_SCHEMA,
+    components: {
+      tokenizer: createSearchTokenizer(createTokenizer),
+    },
   });
+  await insertMultiple(database, documents);
+
+  const serializedDatabase = save(database);
+  const indexPayload = {
+    format: "wymbot-orama",
+    schema_version: SCHEMA_VERSION,
+    tokenizer: TOKENIZER_ID,
+    tokenizer_locale: "zh-CN",
+    records: documents.length,
+    database: serializedDatabase,
+  };
+  const indexText = JSON.stringify(indexPayload);
+
   try {
-    let added = 0;
-    for (const file of files) {
-      const record = JSON.parse(await fs.readFile(file, "utf8"));
-      validateRecord(record, file);
-      const result = await index.addCustomRecord(record);
-      if (result.errors?.length) throw new Error(`${file}: ${result.errors.join("; ")}`);
-      added += 1;
-    }
-    const written = await index.writeFiles({ outputPath: staged });
-    if (written.errors?.length) throw new Error(written.errors.join("; "));
-    await pagefind.close();
+    await fs.mkdir(staged, { recursive: true });
+    await fs.writeFile(path.join(staged, "search-index.json"), `${indexText}\n`, "utf8");
+    await bundle({
+      entryPoints: [path.resolve("web/search.js")],
+      bundle: true,
+      format: "iife",
+      platform: "browser",
+      target: ["es2020"],
+      minify: true,
+      legalComments: "none",
+      outfile: path.join(staged, "search.js"),
+    });
     await publishDirectory(staged, output);
-    console.log(JSON.stringify({ records: added, output }, null, 2));
+    const bundleBytes = (await fs.stat(path.join(output, "search.js"))).size;
+    console.log(JSON.stringify({
+      engine: "orama",
+      records: documents.length,
+      output,
+      serialized_bytes: Buffer.byteLength(indexText),
+      gzip_bytes: gzipSync(indexText).length,
+      bundle_bytes: bundleBytes,
+    }, null, 2));
   } catch (error) {
-    await pagefind.close();
     await fs.rm(staged, { recursive: true, force: true });
     throw error;
   }

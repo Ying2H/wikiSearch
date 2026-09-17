@@ -19,7 +19,7 @@ chmod +x scripts/bootstrap.sh
 ./scripts/bootstrap.sh
 ```
 
-当前没有配置远端仓库，也没有自动提交或推送。将来接入服务器时，可在服务器上用同一 bootstrap 脚本从干净 checkout 重建环境；`requirements.txt` 当前为空依赖（仅标准库），Node 侧已在 `package.json`/`package-lock.json` 中锁定 Pagefind 1.5.2。
+当前发布流程使用服务器上的 GitHub deploy key 自动推送 `gh-pages`；可在服务器上用同一 bootstrap 脚本从干净 checkout 重建环境。`requirements.txt` 当前为空依赖（仅标准库），Node 侧已在 `package.json`/`package-lock.json` 中锁定 Orama 和 esbuild。
 
 抓取 worker 只处理 SQLite 中已入队的页面；成功时把渲染 HTML、FTML 和标准化记录写入缓存，源码或页面请求失败时保留任务并按退避时间重试。当前 worker 尚未作为常驻服务或系统定时任务安装。
 
@@ -31,30 +31,30 @@ chmod +x scripts/bootstrap.sh
 
 后续只处理已有队列时加 `--skip-scan`。HTTP 200 但无 Wikidot page ID 的页面会进入 `quarantined`，对应 job 进入 `blocked`，不会无限重试，也不会作为 active 页面进入快照。
 
-## Pagefind 构建
+## Orama 构建
 
 先完成一次同步并确保 `data/cache/**/record.json` 是一致快照，再执行：
 
 ```powershell
 npm ci
-npm run build:index -- --records data/cache --output data/publish/pagefind
+npm run build:index -- --records data/build-input --output data/publish/orama
 ```
 
-Pagefind 构建失败时，暂存输出会被清理，既有输出目录不会被替换。空正文页面会写入快照排除清单而不进入搜索索引；本次目标站初始化最终索引了 174 条记录，排除了 2 条空正文页面。
+Orama 构建失败时，暂存输出会被清理，既有输出目录不会被替换。空正文页面会写入快照排除清单而不进入搜索索引；本次目标站初始化最终索引了 174 条记录，排除了 2 条空正文页面。
 
 构建后组合静态入口和索引资源：
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/assemble_site.py --pagefind-dir data/target-pagefind-v3 --manifest data/target-snapshot-v3/manifest.json --output-dir data/target-site
+.\.venv\Scripts\python.exe scripts/assemble_site.py --orama-dir data/publish/orama --manifest data/target-snapshot-v3/manifest.json --output-dir data/target-site
 ```
 
-本地 HTTP 验收应至少检查 `/`、`/pagefind/pagefind-ui.js`、`/pagefind/pagefind-ui.css`、实际生成的 `pagefind.zh_*.pf_meta` 和 `/build.json` 均返回 200。正式托管前仍需浏览器验证中文查询、标签过滤、结果跳转和旧索引回滚。
+本地 HTTP 验收应至少检查 `/`、`/orama/search.js`、`/orama/search-index.json` 和 `/build.json` 均返回 200。正式托管前仍需浏览器验证中文查询、结果跳转、iframe 高度和旧索引回滚。
 
 推荐的单轮流程是先生成 SQLite active 页面的快照，再构建索引：
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/sync_once.py --scan-pages 1 --worker-limit 10 --snapshot-dir data/build-input
-npm run build:index -- --records data/build-input --output data/publish/pagefind
+npm run build:index -- --records data/build-input --output data/publish/orama
 ```
 
 快照会拒绝 observed version 与 fetched version 不一致、缓存文件缺失或内容哈希不匹配的页面；此时不应继续发布新索引。

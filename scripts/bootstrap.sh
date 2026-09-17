@@ -20,7 +20,7 @@ fi
 
 if [[ -f "${ROOT_DIR}/package-lock.json" ]]; then
     if ! command -v npm >/dev/null 2>&1; then
-        echo "Node.js/npm is required to install the Pagefind builder dependency." >&2
+        echo "Node.js/npm is required to install the Orama search builder dependencies." >&2
         exit 1
     fi
     (cd "${ROOT_DIR}" && npm ci)

@@ -45,7 +45,7 @@ def _publish_directory(staged: Path, output: Path) -> None:
 
 
 class RecordSnapshotter:
-    """从 active 页面和已校验缓存生成全量、可发布的 Pagefind 输入目录。"""
+    """从 active 页面和已校验缓存生成全量、可发布的搜索输入目录。"""
 
     def __init__(self, store: StateStore, *, cache_dir: str | Path) -> None:
         self.store = store

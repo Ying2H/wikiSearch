@@ -41,25 +41,31 @@ def _swap_directory(staged: Path, output: Path) -> None:
 def assemble_site(
     *,
     web_dir: str | Path,
-    pagefind_dir: str | Path,
+    orama_dir: str | Path,
     output_dir: str | Path,
     manifest_path: str | Path | None = None,
+    build_config_hash: str | None = None,
 ) -> AssembledSite:
     web = Path(web_dir)
-    pagefind = Path(pagefind_dir)
+    orama = Path(orama_dir)
     output = Path(output_dir)
     index = web / "index.html"
-    required_assets = [pagefind / name for name in ("pagefind.js", "pagefind-ui.js", "pagefind-ui.css")]
+    required_assets = [orama / name for name in ("search-index.json", "search.js")]
     if not index.is_file():
         raise PublishError(f"missing static entrypoint: {index}")
     missing = [str(path) for path in required_assets if not path.is_file()]
     if missing:
-        raise PublishError(f"missing Pagefind assets: {', '.join(missing)}")
+        raise PublishError(f"missing Orama assets: {', '.join(missing)}")
 
     metadata: dict[str, Any] = {
         "entrypoint_hash": hashlib.sha256(index.read_bytes()).hexdigest(),
-        "pagefind_assets": len(list(pagefind.rglob("*"))),
+        "search_engine": "orama",
+        "orama_assets": len(list(orama.rglob("*"))),
+        "search_index_bytes": (orama / "search-index.json").stat().st_size,
+        "search_bundle_bytes": (orama / "search.js").stat().st_size,
     }
+    if build_config_hash is not None:
+        metadata["build_config_hash"] = build_config_hash
     if manifest_path is not None:
         manifest = Path(manifest_path)
         try:
@@ -80,12 +86,16 @@ def assemble_site(
     try:
         staged.mkdir(parents=True, exist_ok=False)
         for entry in web.iterdir():
+            # search.js is the browser source used by the Node bundling step;
+            # only the bundled copy under /orama is part of the public site.
+            if entry.name == "search.js":
+                continue
             destination = staged / entry.name
             if entry.is_dir():
                 shutil.copytree(entry, destination)
             else:
                 shutil.copy2(entry, destination)
-        shutil.copytree(pagefind, staged / "pagefind")
+        shutil.copytree(orama, staged / "orama")
         (staged / "build.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         _swap_directory(staged, output)
     except Exception:

@@ -1,5 +1,5 @@
 {
-  "name": "wikidot-pagefind-sync",
+  "name": "wikidot-orama-sync",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,6 +10,8 @@
     "build:index": "node builder/build.mjs"
   },
   "dependencies": {
-    "pagefind": "1.5.2"
+    "@orama/orama": "3.1.18",
+    "@orama/tokenizers": "3.1.18",
+    "esbuild": "0.28.2"
   }
 }

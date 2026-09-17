@@ -35,17 +35,17 @@
 - 软 404、权限撤销、登录页替代和限流页面的识别；
 - 完整 AMC 分页扫描、请求预算、缓存刷新延迟和日常调度；
 - 正文容器对所有页面类型的提取质量；
-- Pagefind extended 中文分词、标题权重、标签过滤、删除后旧词消失和发布回滚。
+- Orama 中文分词、标题权重、精确短语排序、删除后旧词消失和发布回滚。
 
 ## 当前代码状态
 
 已实现并有离线测试：HTML/AMC 清单解析、源码解析、页面 ID 提取适配器、只读请求计数/限速、正文提取、动态初筛、SQLite 观察版本与去重队列、带租约/重试的抓取 worker、原子缓存、include 依赖传播和动态 TTL 入队。目标站单页面 worker 已实测成功（渲染 1 请求 + 源码 1 请求）。
-Pagefind 构建器、静态搜索页骨架和 SQLite 一致快照已实现，并已用两条中文 fixture 及目标站 174 条记录构建验证；尚未实现：后台 scheduler、完整重叠水位/全量核对、真实浏览器搜索验收和正式发布。
+Orama 构建器、静态搜索页骨架和 SQLite 一致快照已实现，并已用两条中文 fixture 及目标站 174 条记录构建验证；尚未实现：后台 scheduler、完整重叠水位/全量核对、真实浏览器搜索验收和正式发布。
 
-本轮端到端小样本已通过：目标站第一页发现 100 条、抓取 `pagelist` 1 页、生成 1 条一致快照，并成功产出 Pagefind 索引文件；临时数据库、缓存和索引均已清理。目标站全量 177 页正文仍未自动抓取。
+本轮端到端小样本已通过：目标站第一页发现 100 条、抓取 `pagelist` 1 页、生成 1 条一致快照，并成功产出静态 Orama 索引文件；临时数据库、缓存和索引均已清理。目标站全量 177 页正文仍未自动抓取。
 
-随后完成了目标站全量只读初始化：177 条清单、177 次渲染请求、176 次源码请求，共 355 次请求，统一请求间隔 2 秒。结果为 176 个 active 页面、1 个 `admin:manage` 软 404 隔离页；其中 174 条正文进入 Pagefind，`component:autofold` 和 `component:autofold-hint` 因空正文被排除。最终快照 generation 为 3，Pagefind 输出 191 个文件，SQLite 中无 pending/leased 任务。
+随后完成了目标站全量只读初始化：177 条清单、177 次渲染请求、176 次源码请求，共 355 次请求，统一请求间隔 2 秒。结果为 176 个 active 页面、1 个 `admin:manage` 软 404 隔离页；其中 174 条正文进入 Orama，`component:autofold` 和 `component:autofold-hint` 因空正文被排除。最终快照 generation 为 3，SQLite 中无 pending/leased 任务。
 
-真实静态站装配目录 `data/target-site` 已生成；本地 HTTP 检查确认入口、Pagefind UI JS/CSS、实际语言元数据文件和 `build.json` 均返回 HTTP 200。该目录及目标站缓存没有加入 Git。
+真实静态站装配目录 `data/target-site` 已生成；本地 HTTP 检查确认入口、Orama JS/JSON 索引和 `build.json` 均返回 HTTP 200。该目录及目标站缓存没有加入 Git。
 
 active 页面的现场分类分布：`dynamic-listpages=3`、`dynamic-other=9`、`dynamic-transitive=4`、`static=19`、`unknown=141`。`unknown` 占比较高，符合一期保守策略，不能据此承诺所有页面已经被完整 FTML 解释。

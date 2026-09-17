@@ -46,7 +46,7 @@ ssh -T -i /root/.ssh/wymbot_github_pages_ed25519 git@github.com
 ./scripts/run_pipeline.sh --publish
 ```
 
-该流程依次执行清单扫描、增量抓取、依赖队列排空、内容一致性快照、Pagefind 构建、静态目录装配和 `gh-pages` 推送；依赖传播最多自动排空 3 轮。旧静态目录在新构建失败时保留；没有内容变化时不创建新的 Pages 提交。
+该流程依次执行清单扫描、增量抓取、依赖队列排空、内容一致性快照、Orama 构建、静态目录装配和 `gh-pages` 推送；依赖传播最多自动排空 3 轮。旧静态目录在新构建失败时保留；没有内容变化时不创建新的 Pages 提交。
 
 确认手动发布成功后安装 systemd 定时器：
 
@@ -57,6 +57,13 @@ journalctl -u wymbot-search-sync.service -n 100 --no-pager
 ```
 
 定时器开机后约 5 分钟首次运行，之后每轮完成后间隔 10 分钟，因此 `/pagelist` 清单约每 10 分钟确认一次。带有 `ListPages` 的页面通过 1800 秒 TTL 约每 30 分钟复核一次；间接依赖页面同样按 30 分钟处理，其他动态页面默认 60 分钟。`data/pipeline.lock` 防止上一轮尚未结束时并发抓取。目标站请求间隔默认 2 秒，可通过 systemd unit 中的环境变量调整。
+
+重构或维护期间可以暂停当前调度，不删除开机启用配置：
+
+```bash
+systemctl stop wymbot-search-sync.timer wymbot-search-sync.service
+systemctl start wymbot-search-sync.timer
+```
 
 ## 回滚与故障处理
 

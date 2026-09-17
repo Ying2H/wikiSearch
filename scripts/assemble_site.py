@@ -13,18 +13,20 @@ from search_sync.publish import PublishError, assemble_site
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="组合静态搜索页和 Pagefind 资源")
+    parser = argparse.ArgumentParser(description="组合静态搜索页和 Orama 资源")
     parser.add_argument("--web-dir", default="web")
-    parser.add_argument("--pagefind-dir", required=True)
+    parser.add_argument("--orama-dir", required=True)
     parser.add_argument("--manifest", default=None)
+    parser.add_argument("--build-config-hash", default=None)
     parser.add_argument("--output-dir", default="data/publish/site")
     args = parser.parse_args()
     try:
         site = assemble_site(
             web_dir=args.web_dir,
-            pagefind_dir=args.pagefind_dir,
+            orama_dir=args.orama_dir,
             output_dir=args.output_dir,
             manifest_path=args.manifest,
+            build_config_hash=args.build_config_hash,
         )
     except PublishError as exc:
         print(str(exc), file=sys.stderr)

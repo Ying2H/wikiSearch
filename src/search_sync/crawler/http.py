@@ -38,7 +38,7 @@ class HttpClient:
         *,
         timeout: float = 30.0,
         min_interval: float = 2.0,
-        user_agent: str = "wikidot-pagefind-sync/0.1 (+read-only)",
+        user_agent: str = "wikidot-orama-sync/0.1 (+read-only)",
         limiter: RateLimiter | None = None,
     ) -> None:
         self.timeout = timeout

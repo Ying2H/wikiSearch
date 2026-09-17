@@ -33,7 +33,7 @@ def _probe(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Wikidot Pagefind Sync 初始命令行")
+    parser = argparse.ArgumentParser(description="Wikidot Orama Sync 初始命令行")
     sub = parser.add_subparsers(dest="command", required=True)
     probe = sub.add_parser("probe", help="只读探测 ListPages HTML 清单")
     probe.add_argument("--base-url", default="http://wymbot.wikidot.com")

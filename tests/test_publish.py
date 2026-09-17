@@ -11,12 +11,12 @@ class PublishTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             web = root / "web"
-            pagefind = root / "pagefind"
+            orama = root / "orama"
             web.mkdir()
-            pagefind.mkdir()
+            orama.mkdir()
             (web / "index.html").write_text("<html></html>", encoding="utf-8")
-            for filename in ("pagefind.js", "pagefind-ui.js", "pagefind-ui.css"):
-                (pagefind / filename).write_text(filename, encoding="utf-8")
+            for filename in ("search-index.json", "search.js"):
+                (orama / filename).write_text(filename, encoding="utf-8")
             manifest = root / "manifest.json"
             manifest.write_text(
                 json.dumps({"site_id": "example", "corpus_generation": 3, "count": 4, "excluded": [], "manifest_hash": "abc"}),
@@ -25,34 +25,37 @@ class PublishTests(unittest.TestCase):
 
             result = assemble_site(
                 web_dir=web,
-                pagefind_dir=pagefind,
+                orama_dir=orama,
                 output_dir=root / "site",
                 manifest_path=manifest,
+                build_config_hash="def",
             )
 
             self.assertEqual(result.record_count, 4)
             self.assertTrue((root / "site" / "index.html").exists())
-            self.assertTrue((root / "site" / "pagefind" / "pagefind-ui.js").exists())
+            self.assertTrue((root / "site" / "orama" / "search.js").exists())
             metadata = json.loads((root / "site" / "build.json").read_text(encoding="utf-8"))
             self.assertEqual(metadata["corpus_generation"], 3)
             self.assertEqual(metadata["manifest_hash"], "abc")
+            self.assertEqual(metadata["search_engine"], "orama")
+            self.assertEqual(metadata["build_config_hash"], "def")
             self.assertEqual(len(metadata["entrypoint_hash"]), 64)
 
     def test_second_assembly_replaces_old_files_as_a_unit(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             web = root / "web"
-            pagefind = root / "pagefind"
+            orama = root / "orama"
             web.mkdir()
-            pagefind.mkdir()
+            orama.mkdir()
             (web / "index.html").write_text("v1", encoding="utf-8")
-            for filename in ("pagefind.js", "pagefind-ui.js", "pagefind-ui.css"):
-                (pagefind / filename).write_text("v1", encoding="utf-8")
+            for filename in ("search-index.json", "search.js"):
+                (orama / filename).write_text("v1", encoding="utf-8")
             output = root / "site"
-            assemble_site(web_dir=web, pagefind_dir=pagefind, output_dir=output)
+            assemble_site(web_dir=web, orama_dir=orama, output_dir=output)
             (web / "index.html").write_text("v2", encoding="utf-8")
-            (pagefind / "old.pf").write_text("new", encoding="utf-8")
-            assemble_site(web_dir=web, pagefind_dir=pagefind, output_dir=output)
+            (orama / "old.json").write_text("new", encoding="utf-8")
+            assemble_site(web_dir=web, orama_dir=orama, output_dir=output)
 
             self.assertEqual((output / "index.html").read_text(encoding="utf-8"), "v2")
-            self.assertTrue((output / "pagefind" / "old.pf").exists())
+            self.assertTrue((output / "orama" / "old.json").exists())

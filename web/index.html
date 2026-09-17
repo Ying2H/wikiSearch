@@ -6,111 +6,147 @@
     <title>Wikidot 搜索</title>
     <base target="_blank">
     <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        line-height: 1.5;
+      }
+
       html,
       body {
         margin: 0;
         padding: 0;
+        background: #fff;
+        color: #202124;
+      }
+
+      main {
+        box-sizing: border-box;
+        width: min(100%, 760px);
+        min-height: 240px;
+        margin: 0 auto;
+        padding: 12px;
+      }
+
+      .search-box {
+        display: flex;
+        gap: 8px;
+      }
+
+      .search-input {
+        box-sizing: border-box;
+        flex: 1;
+        min-width: 0;
+        min-height: 42px;
+        padding: 8px 12px;
+        border: 1px solid #b8bec8;
+        border-radius: 6px;
+        font: inherit;
+        font-size: 16px;
+      }
+
+      .search-input:focus {
+        border-color: #356ae6;
+        outline: 2px solid #d8e2ff;
+        outline-offset: 1px;
+      }
+
+      .clear-button {
+        min-width: 58px;
+        border: 1px solid #b8bec8;
+        border-radius: 6px;
+        background: #f7f8fa;
+        color: #30343b;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      .clear-button:disabled {
+        cursor: default;
+        opacity: .55;
+      }
+
+      .search-status {
+        min-height: 24px;
+        margin: 8px 0 4px;
+        color: #626a76;
+        font-size: 14px;
+      }
+
+      .search-results {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .search-result {
+        padding: 10px 0 12px;
+        border-bottom: 1px solid #e7e9ed;
+      }
+
+      .result-link {
+        color: #1459b8;
+        font-size: 17px;
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      .result-link:hover,
+      .result-link:focus {
+        text-decoration: underline;
+      }
+
+      .result-name {
+        margin-left: 8px;
+        color: #707782;
+        font-size: 13px;
+      }
+
+      .result-snippet {
+        margin: 4px 0 0;
+        color: #454b54;
+        font-size: 14px;
+        overflow-wrap: anywhere;
+      }
+
+      mark {
+        padding: 0 1px;
+        border-radius: 2px;
+        background: #fff0a8;
+        color: inherit;
+      }
+
+      @media (max-width: 420px) {
+        main {
+          padding: 8px;
+        }
+
+        .result-link {
+          font-size: 16px;
+        }
       }
     </style>
-    <link href="./pagefind/pagefind-ui.css" rel="stylesheet">
   </head>
   <body>
     <main>
-      <div id="search"></div>
+      <div class="search-box">
+        <input
+          id="search-input"
+          class="search-input"
+          type="search"
+          inputmode="search"
+          enterkeyhint="search"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="搜索页面"
+          aria-label="搜索页面"
+        >
+        <button id="clear-button" class="clear-button" type="button" disabled>清除</button>
+      </div>
+      <p id="search-status" class="search-status" role="status" aria-live="polite">正在加载索引…</p>
+      <ol id="search-results" class="search-results" aria-label="搜索结果"></ol>
     </main>
-    <script src="./pagefind/pagefind-ui.js"></script>
-    <script>
-      (() => {
-        const minHeight = 280;
-        const searchRoot = document.getElementById("search");
-        const allowedParentOrigins = new Set([
-          "http://wymbot.wikidot.com",
-          "https://wymbot.wikidot.com"
-        ]);
-        let lastHeight = 0;
-        let scheduled = false;
-
-        function parentOrigin() {
-          try {
-            const origin = new URL(document.referrer).origin;
-            return allowedParentOrigins.has(origin) ? origin : "*";
-          } catch {
-            return "*";
-          }
-        }
-
-        function sendHeight() {
-          if (window.parent === window) return;
-          const height = Math.max(
-            minHeight,
-            document.documentElement.scrollHeight,
-            document.body.scrollHeight
-          );
-          if (height === lastHeight) return;
-          lastHeight = height;
-          window.parent.postMessage(
-            { type: "wymbot-search-height", height },
-            parentOrigin()
-          );
-        }
-
-        function scheduleHeight() {
-          if (scheduled) return;
-          scheduled = true;
-          requestAnimationFrame(() => {
-            scheduled = false;
-            sendHeight();
-          });
-        }
-
-        function externalizeResultLinks() {
-          searchRoot.querySelectorAll("a.pagefind-ui__result-link").forEach((link) => {
-            link.target = "_blank";
-            link.rel = "noopener noreferrer";
-          });
-        }
-
-        new ResizeObserver(scheduleHeight).observe(document.documentElement);
-        new MutationObserver(scheduleHeight).observe(document.body, {
-          childList: true,
-          subtree: true,
-          attributes: true
-        });
-        new MutationObserver(() => {
-          externalizeResultLinks();
-          scheduleHeight();
-        }).observe(searchRoot, { childList: true, subtree: true });
-        searchRoot.addEventListener("click", (event) => {
-          const link = event.target instanceof Element
-            ? event.target.closest("a.pagefind-ui__result-link")
-            : null;
-          if (link) {
-            link.target = "_blank";
-            link.rel = "noopener noreferrer";
-          }
-        });
-        window.addEventListener("load", scheduleHeight);
-        window.addEventListener("message", (event) => {
-          if (
-            event.source === window.parent &&
-            event.data?.type === "wymbot-search-request-height"
-          ) {
-            scheduleHeight();
-          }
-        });
-
-        new PagefindUI({
-          element: "#search",
-          showImages: false,
-          translations: {
-            placeholder: "搜索页面",
-            zero_results: "没有找到结果",
-            load_more: "加载更多"
-          }
-        });
-        externalizeResultLinks();
-        scheduleHeight();
-      })();
-    </script>
+    <script src="./orama/search.js" defer></script>
   </body>
 </html>

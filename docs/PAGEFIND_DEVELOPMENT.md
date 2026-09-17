@@ -1,4 +1,4 @@
-# Wikidot + Pagefind 搜索：开发执行说明
+# Wikidot + Orama 搜索：开发执行说明
 
 状态：设计完成，尚未实现、尚未对目标站实测。核实日期：2026-09-17。
 
@@ -11,7 +11,7 @@
 核心区分：
 
 - 页面自身修订变化，是重新抓取的充分理由，不是渲染变化的必要条件。
-- 清单高频轮询主要减少远程请求；Pagefind 从本地已缓存语料重建。远程增量抓取不等于 Pagefind 磁盘索引可原地增量更新。
+- 清单高频轮询主要减少远程请求；Orama 从本地已缓存语料重建。远程增量抓取不等于静态索引可原地增量更新。
 - 发布的是匿名访问者可见的正文快照；不执行任意页面脚本，不追求用户、URL 参数、随机结果的所有变体。
 - 抓取、持久化、索引构建、发布分开调度；无语料变化时不构建、不发布。
 
@@ -23,7 +23,7 @@
 2. wikidot.py 实现使用 ListPages 返回 `fullname`、`updated_at`、`revisions` 等字段；其高级列表函数会自动获取后续分页。低请求模式不能直接调用一个无界的全量列表函数。[S2]
 3. 同一实现通过 `viewsource/ViewSourceModule` 和 `page_id` 读取源码，从 `div.page-source` 提取文本；页面 ID 可以从页面响应中取得。[S2]
 4. 官方 XML-RPC `pages.get_one` 文档提供 `content` 和渲染 `html`；数据表单页面的 content 可能是 YAML。[S3]
-5. Pagefind 支持自定义记录、标签过滤和排序；可生成静态文件。中文需要支持分词的 extended 版本。[S4][S5]
+5. Orama 支持自定义字段、过滤和排序；可生成静态 JSON 文件。中文使用 Mandarin tokenizer。[S4][S5]
 
 以上是文档/源码依据，不代表目标站当前一定支持。实施 agent 必须先完成 P0 探测，记录实际日期、库版本、脱敏响应和请求数。
 
@@ -38,13 +38,13 @@
 
 ## 3. 系统结构与实施边界
 
-建议 Python 负责 HTTP、DOM 解析和 SQLite 状态，Node.js 负责 Pagefind 构建与静态界面；可采用 wikidot.py，但所有访问必须经过可计数、限速的适配层。锁定依赖版本并审计惰性属性是否触发额外网络请求。
+建议 Python 负责 HTTP、DOM 解析和 SQLite 状态，Node.js 负责 Orama 构建与静态界面；可采用 wikidot.py，但所有访问必须经过可计数、限速的适配层。锁定依赖版本并审计惰性属性是否触发额外网络请求。
 
 ```text
 ListPages 清单 ──> 持久化发现队列 ──> HTML + 按需 FTML ──> 本地语料
 动态 TTL 队列 ────────────────────> HTML 刷新 ──────────┘
 低频全量元数据清单 ──> 补漏、删除/改名核对 ───────────────┘
-本地语料一致性快照 ──> Pagefind 新索引 ──> 验证 ──> 原子发布
+本地语料一致性快照 ──> Orama 新索引 ──> 验证 ──> 原子发布
 ```
 
 仅生成本地程序、配置示例和站内安装代码；站点 URL、写入站点和实际托管目标尚未提供。不要猜测目标站、自动创建 Wikidot 页面或部署到未经指定的账号。缺少站点时可完成离线 fixtures 和本地搜索演示，现场接入单独记录为未完成。
@@ -180,13 +180,13 @@ Q ≈ 86400 / poll_seconds
 
 新鲜度预算是轮询/TTL + Wikidot 缓存延迟 + 排队 + 构建 + 发布。健康且无积压时，编辑页面目标 5 分钟左右、普通动态页目标 20 分钟左右；这些是待实测的工程目标，不是保证。监控首次发现到上线时间及动态刷新逾期时间。
 
-## 10. 正文提取与 Pagefind 构建
+## 10. 正文提取与 Orama 构建
 
 HTML 仅提取正文容器，去除导航、页脚、脚本、样式、编辑控件及不需要的评分 UI；折叠正文和 tab 内文章文字保留。iframe 内容和点击后 Ajax 加载内容一期不抓取，输出能力限制；需要时仅对明确白名单页面单独实现，不运行任意脚本。
 
 规范化规则版本化，保留段落边界和合理空白，防止中文断句粘连。对模板提取规则变化，从本地 HTML 缓存重新处理，不重新请求全部页面。
 
-构建器从 SQLite 一致性快照导出全部 active 记录，调用 Pagefind `addCustomRecord`，字段契约：[S4]
+构建器从 SQLite 一致性快照导出全部 active 记录，使用 Orama schema 和 Mandarin tokenizer 建立索引，字段契约如下：
 
 ```json
 {
@@ -205,7 +205,7 @@ HTML 仅提取正文容器，去除导航、页脚、脚本、样式、编辑控
 - 默认变化后合并等待 60 秒，持续变化时最多等待 180 秒再启动；只允许一个构建任务。
 - 构建期间发生新变化，下一轮处理；不能把新变更 generation 标成已发布。
 - 创建全新索引输出目录，不在旧输出中覆盖增删；删除记录通过全量本地重建生效。
-- Pagefind 每个 API 的 errors 都检查；失败保留上一成功版本。
+- Orama 序列化和浏览器 bundle 构建失败时保留上一成功版本。
 - 记录 corpus generation、构建 ID、配置版本和更新时间。
 
 ## 11. 发布与 Wikidot 接入
@@ -240,7 +240,7 @@ src/extract/content.py
 builder/build.mjs
 web/
 tests/fixtures/
-docs/PAGEFIND_DEVELOPMENT.md
+docs/ORAMA_BUILD.md
 docs/CAPABILITY_REPORT.md
 docs/OPERATIONS.md
 ```
@@ -272,7 +272,7 @@ docs/OPERATIONS.md
 
 ### P3：搜索与本地发布
 
-- 从缓存构建 Pagefind，生成中文搜索页与站内接入示例。
+- 从缓存构建 Orama，生成中文搜索页与站内接入示例。
 - 对文章标题、正文中文词组、中英编号、标签过滤和原 URL 跳转做浏览器验收。
 - 内容删除后旧词不可搜索；构建失败不影响旧版本；无语料变化不构建。
 - 记录 5000 条模拟语料的构建时间/资源使用，确认所选频率可承受；不以模拟值替代真实站指标。
@@ -291,8 +291,8 @@ docs/OPERATIONS.md
 - [S1 Wikidot 官方 ListPages 排序说明](https://blog.wikidot.com/design:4)
 - [S2 wikidot.py 页面访问实现：列表、ID 与 ViewSource](https://github.com/ukwhatn/wikidot.py/blob/main/src/wikidot/module/page.py)（实施时锁定 commit，main 可变）
 - [S3 Wikidot 官方 XML-RPC API](https://www.wikidot.com/doc:api)
-- [S4 Pagefind Node.js 索引 API](https://pagefind.app/docs/node-api/)
-- [S5 Pagefind 多语言及中文分词](https://pagefind.app/docs/multilingual/)
-- [S6 Pagefind 开源仓库](https://github.com/Pagefind/pagefind)
+- [S4 Orama 中文支持](https://docs.orama.com/docs/orama-js/supported-languages/using-chinese-with-orama)
+- [S5 Orama JavaScript 文档](https://docs.orama.com/docs/orama-js)
+- [S6 Orama 开源仓库](https://github.com/oramasearch/orama)
 
 本文中的频率、架构、算法、数据库设计和验收条件为本项目方案，不是上述上游项目提供的性能或一致性保证。

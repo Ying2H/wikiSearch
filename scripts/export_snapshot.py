@@ -14,7 +14,7 @@ from search_sync.sync.state import StateStore
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="从已有 SQLite 状态和缓存导出 Pagefind 输入快照")
+    parser = argparse.ArgumentParser(description="从已有 SQLite 状态和缓存导出静态搜索输入快照")
     parser.add_argument("--db", default="data/state.sqlite3")
     parser.add_argument("--cache-dir", default="data/cache")
     parser.add_argument("--site-id", required=True)
