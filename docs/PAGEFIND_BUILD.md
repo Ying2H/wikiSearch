@@ -29,4 +29,6 @@ npm run build:index -- --records data/cache --output data/publish/pagefind
 
 目标站首次全量结果：active 176 页，174 页有可索引正文，2 页因空正文进入 `manifest.json` 的 `excluded` 列表；软 404 页面不属于 active 快照。
 
+目标站的本地静态装配目录为 `data/target-site`（该目录被 `.gitignore` 忽略），包含 `index.html`、`pagefind/` 和 `build.json`。本轮 HTTP 检查中入口、UI JS/CSS、语言元数据文件和构建元数据均可返回 200；尚未进行真实浏览器交互验收。
+
 参考：[Pagefind Node API](https://pagefind.app/docs/node-api/)、[多语言搜索](https://pagefind.app/docs/multilingual/)。

@@ -33,6 +33,14 @@ npm run build:index -- --records data/cache --output data/publish/pagefind
 
 Pagefind 构建失败时，暂存输出会被清理，既有输出目录不会被替换。空正文页面会写入快照排除清单而不进入搜索索引；本次目标站初始化最终索引了 174 条记录，排除了 2 条空正文页面。
 
+构建后组合静态入口和索引资源：
+
+```powershell
+.\.venv\Scripts\python.exe scripts/assemble_site.py --pagefind-dir data/target-pagefind-v3 --manifest data/target-snapshot-v3/manifest.json --output-dir data/target-site
+```
+
+本地 HTTP 验收应至少检查 `/`、`/pagefind/pagefind-ui.js`、`/pagefind/pagefind-ui.css`、实际生成的 `pagefind.zh_*.pf_meta` 和 `/build.json` 均返回 200。正式托管前仍需浏览器验证中文查询、标签过滤、结果跳转和旧索引回滚。
+
 推荐的单轮流程是先生成 SQLite active 页面的快照，再构建索引：
 
 ```powershell

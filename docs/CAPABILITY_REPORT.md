@@ -46,4 +46,6 @@ Pagefind 构建器、静态搜索页骨架和 SQLite 一致快照已实现，并
 
 随后完成了目标站全量只读初始化：177 条清单、177 次渲染请求、176 次源码请求，共 355 次请求，统一请求间隔 2 秒。结果为 176 个 active 页面、1 个 `admin:manage` 软 404 隔离页；其中 174 条正文进入 Pagefind，`component:autofold` 和 `component:autofold-hint` 因空正文被排除。最终快照 generation 为 3，Pagefind 输出 191 个文件，SQLite 中无 pending/leased 任务。
 
+真实静态站装配目录 `data/target-site` 已生成；本地 HTTP 检查确认入口、Pagefind UI JS/CSS、实际语言元数据文件和 `build.json` 均返回 HTTP 200。该目录及目标站缓存没有加入 Git。
+
 active 页面的现场分类分布：`dynamic-listpages=3`、`dynamic-other=9`、`dynamic-transitive=4`、`static=19`、`unknown=141`。`unknown` 占比较高，符合一期保守策略，不能据此承诺所有页面已经被完整 FTML 解释。

@@ -33,6 +33,15 @@ npm run build:index -- --records data/cache --output data/publish/pagefind
 
 构建器读取 worker 生成的 `record.json`，逐条校验后调用 Pagefind `addCustomRecord`，先写入暂存目录，再切换到输出目录。示例搜索页在 [`web/index.html`](D:/Project/test/search/web/index.html)。
 
+组合成可直接托管的站点目录：
+
+```powershell
+.\.venv\Scripts\python.exe scripts/assemble_site.py `
+  --pagefind-dir data/target-pagefind-v3 `
+  --manifest data/target-snapshot-v3/manifest.json `
+  --output-dir data/target-site
+```
+
 服务器上的单轮同步入口：
 
 ```powershell
