@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RanDomWiki 搜索</title>
+    <link href="./pagefind/pagefind-ui.css" rel="stylesheet">
+  </head>
+  <body>
+    <main>
+      <h1>RanDomWiki 搜索</h1>
+      <p>结果链接会返回目标 Wikidot 页面。</p>
+      <div id="search"></div>
+    </main>
+    <script src="./pagefind/pagefind-ui.js"></script>
+    <script>
+      new PagefindUI({
+        element: "#search",
+        showImages: false,
+        translations: {
+          placeholder: "搜索页面",
+          zero_results: "没有找到结果",
+          load_more: "加载更多"
+        }
+      });
+    </script>
+  </body>
+</html>
