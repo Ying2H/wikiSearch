@@ -2,12 +2,12 @@
   "entrypoint_hash": "eac596d17a5c3869bb49758184d1432564f45fbe493f976a37961c318f65787a",
   "search_engine": "orama",
   "orama_assets": 2,
-  "search_index_bytes": 1390765,
+  "search_index_bytes": 1394036,
   "search_bundle_bytes": 69895,
   "build_config_hash": "cc8158d9926129dea53258f2b358f496224648187a06f713dd52c539091c2945",
   "site_id": "wymbot.wikidot.com",
-  "corpus_generation": 258,
-  "record_count": 174,
+  "corpus_generation": 259,
+  "record_count": 175,
   "excluded_count": 3,
-  "manifest_hash": "fb1559e8968d6daf3e46bd17db24e1a794b2fa373b4f4abb644c06cf5459511e"
+  "manifest_hash": "5b07e33e49f0ee2d62e0939772de1d9da362b6d21c312f4f8dea380dbb5e84b6"
 }
