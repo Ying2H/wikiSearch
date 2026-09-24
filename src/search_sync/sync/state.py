@@ -635,16 +635,70 @@ class StateStore:
 
     def recover_expired_leases(self, *, now: int | None = None) -> int:
         now = _now() if now is None else now
+        recovered = 0
         with self.db:
-            cursor = self.db.execute(
+            expired_jobs = self.db.execute(
                 """
-                UPDATE jobs SET status = 'queued', lease_until = NULL,
-                    due_at = MIN(due_at, ?), updated_at = ?
+                SELECT id, page_row_id, reasons, target_updated_at, target_revisions, due_at
+                FROM jobs
                 WHERE status = 'leased' AND lease_until IS NOT NULL AND lease_until <= ?
                 """,
-                (now, now, now),
-            )
-        return cursor.rowcount
+                (now,),
+            ).fetchall()
+            for expired in expired_jobs:
+                queued = self.db.execute(
+                    """
+                    SELECT id, reasons, target_updated_at, target_revisions, due_at
+                    FROM jobs WHERE page_row_id = ? AND status = 'queued'
+                    """,
+                    (expired["page_row_id"],),
+                ).fetchone()
+                if queued is None:
+                    cursor = self.db.execute(
+                        """
+                        UPDATE jobs SET status = 'queued', lease_until = NULL,
+                            due_at = MIN(due_at, ?), updated_at = ?
+                        WHERE id = ? AND status = 'leased'
+                        """,
+                        (now, now, expired["id"]),
+                    )
+                    recovered += cursor.rowcount
+                    continue
+
+                reasons = set(json.loads(queued["reasons"] or "[]"))
+                reasons.update(json.loads(expired["reasons"] or "[]"))
+                queued_target = (queued["target_updated_at"], queued["target_revisions"])
+                expired_target = (expired["target_updated_at"], expired["target_revisions"])
+                target = max(
+                    (queued_target, expired_target),
+                    key=lambda version: (
+                        version[0] is not None,
+                        version[0] if version[0] is not None else -1,
+                        version[1] is not None,
+                        version[1] if version[1] is not None else -1,
+                    ),
+                )
+                self.db.execute(
+                    """
+                    UPDATE jobs SET reasons = ?, target_updated_at = ?, target_revisions = ?,
+                        due_at = MIN(due_at, ?), updated_at = ?
+                    WHERE id = ? AND status = 'queued'
+                    """,
+                    (
+                        json.dumps(sorted(reasons), ensure_ascii=False),
+                        target[0],
+                        target[1],
+                        now,
+                        now,
+                        queued["id"],
+                    ),
+                )
+                self.db.execute(
+                    "DELETE FROM jobs WHERE id = ? AND status = 'leased'",
+                    (expired["id"],),
+                )
+                recovered += 1
+        return recovered
 
     def set_page_id(self, page_row_id: int, page_id: int) -> None:
         with self.db:

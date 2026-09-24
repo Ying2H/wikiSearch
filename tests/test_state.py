@@ -60,6 +60,29 @@ class StateTests(unittest.TestCase):
                 self.assertTrue(store.mark_fetched(page_id, target=(200, 1), content_hash="new"))
                 self.assertEqual(store.queued_job_count("wymbot"), 0)
 
+    def test_recover_expired_lease_merges_follow_up_job(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with StateStore(Path(temp_dir) / "state.sqlite3") as store:
+                page_id, _ = store.observe_manifest_entry(
+                    site_id="wymbot",
+                    entry=entry(100),
+                    canonical_url="https://wymbot.wikidot.com/article:one",
+                )
+                leased_id = int(store.db.execute("SELECT id FROM jobs WHERE page_row_id = ?", (page_id,)).fetchone()[0])
+                self.assertTrue(store.claim_job(leased_id, lease_seconds=1, now=10**12))
+                store.enqueue_job(page_id, reason="manifest_changed", target=(101, 2), due_at=200)
+
+                self.assertEqual(store.recover_expired_leases(now=10**12 + 2), 1)
+                jobs = store.db.execute(
+                    "SELECT status, reasons, target_updated_at, target_revisions, due_at FROM jobs WHERE page_row_id = ?",
+                    (page_id,),
+                ).fetchall()
+                self.assertEqual(len(jobs), 1)
+                self.assertEqual(jobs[0]["status"], "queued")
+                self.assertEqual(set(json.loads(jobs[0]["reasons"])), {"first_seen", "manifest_changed"})
+                self.assertEqual((jobs[0]["target_updated_at"], jobs[0]["target_revisions"]), (101, 2))
+                self.assertEqual(jobs[0]["due_at"], 200)
+
     def test_dependency_change_enqueues_dependents(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             with StateStore(Path(temp_dir) / "state.sqlite3") as store:
