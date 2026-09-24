@@ -1,8 +1,8 @@
 # 目标站能力与采集边界
 
-目标站点：`http://wymbot.wikidot.com`
+目标站点：`https://wymbot.wikidot.com`
 
-清单页面：`http://wymbot.wikidot.com/pagelist`
+清单页面：`https://wymbot.wikidot.com/pagelist`
 观测时间：2026-09-17（Asia/Shanghai）
 
 本文记录目标站点可供同步系统使用的公开读取能力、响应特征和采集边界。所有接口均以只读方式访问。

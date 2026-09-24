@@ -1,5 +1,5 @@
 # 只读取公开页面，不登录，不向 Wikidot 写入内容。
-site_url: http://wymbot.wikidot.com
+site_url: https://wymbot.wikidot.com
 manifest:
   provider: html_manifest
   path: /pagelist

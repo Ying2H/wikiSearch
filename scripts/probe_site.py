@@ -15,7 +15,7 @@ from search_sync.crawler.wikidot import WikidotSite
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="只读探测一个 Wikidot 站点")
-    parser.add_argument("--base-url", default="http://wymbot.wikidot.com")
+    parser.add_argument("--base-url", default="https://wymbot.wikidot.com")
     parser.add_argument("--manifest-path", default="/pagelist")
     parser.add_argument("--max-pages", type=int, default=2)
     parser.add_argument("--min-interval", type=float, default=2.0)

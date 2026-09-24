@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
 PYTHON_BIN="${PYTHON_BIN:-${ROOT_DIR}/.venv/bin/python}"
-SITE_URL="${SITE_URL:-http://wymbot.wikidot.com}"
+SITE_URL="${SITE_URL:-https://wymbot.wikidot.com}"
 MANIFEST_PATH="${MANIFEST_PATH:-/pagelist}"
 SCAN_PAGES="${SCAN_PAGES:-2}"
 WORKER_LIMIT="${WORKER_LIMIT:-200}"

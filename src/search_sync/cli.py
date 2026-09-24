@@ -36,7 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Wikidot Orama Sync 初始命令行")
     sub = parser.add_subparsers(dest="command", required=True)
     probe = sub.add_parser("probe", help="只读探测 ListPages HTML 清单")
-    probe.add_argument("--base-url", default="http://wymbot.wikidot.com")
+    probe.add_argument("--base-url", default="https://wymbot.wikidot.com")
     probe.add_argument("--manifest-path", default="/pagelist")
     probe.add_argument("--max-pages", type=int, default=2)
     probe.add_argument("--timeout", type=float, default=30.0)

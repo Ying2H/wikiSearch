@@ -20,7 +20,7 @@ from search_sync.sync.worker import FetchWorker
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="执行一轮 Wikidot 清单扫描、抓取和可选快照")
-    parser.add_argument("--base-url", default="http://wymbot.wikidot.com")
+    parser.add_argument("--base-url", default="https://wymbot.wikidot.com")
     parser.add_argument("--manifest-path", default="/pagelist")
     parser.add_argument("--site-id", default=None)
     parser.add_argument("--db", default="data/state.sqlite3")

@@ -51,7 +51,7 @@ Linux：
 
 ```bash
 python scripts/probe_site.py \
-  --base-url http://wymbot.wikidot.com \
+  --base-url https://wymbot.wikidot.com \
   --manifest-path /pagelist \
   --max-pages 2 \
   --min-interval 2

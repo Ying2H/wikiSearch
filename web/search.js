@@ -9,7 +9,6 @@ const SEARCHABLE_FIELDS = ["title", "fullname", "category", "content"];
 const HAN_RE = /[\u3400-\u9fff\uf900-\ufaff]/u;
 const MIN_HEIGHT = 240;
 const ALLOWED_PARENT_ORIGINS = new Set([
-  "http://wymbot.wikidot.com",
   "https://wymbot.wikidot.com",
 ]);
 

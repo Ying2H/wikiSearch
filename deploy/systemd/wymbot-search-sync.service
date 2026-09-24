@@ -8,7 +8,7 @@ Type=oneshot
 User=root
 WorkingDirectory=/root/code/wymboTSearch
 Environment=PYTHON_BIN=/root/code/wymboTSearch/.venv/bin/python
-Environment=SITE_URL=http://wymbot.wikidot.com
+Environment=SITE_URL=https://wymbot.wikidot.com
 Environment=MANIFEST_PATH=/pagelist
 Environment=SCAN_PAGES=2
 Environment=WORKER_LIMIT=200

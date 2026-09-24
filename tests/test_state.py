@@ -18,7 +18,7 @@ class StateTests(unittest.TestCase):
                 page_id, changed = store.observe_manifest_entry(
                     site_id="wymbot",
                     entry=entry(100),
-                    canonical_url="http://wymbot.wikidot.com/article:one",
+                    canonical_url="https://wymbot.wikidot.com/article:one",
                     inventory_id="scan-1",
                 )
                 self.assertTrue(changed)
@@ -28,7 +28,7 @@ class StateTests(unittest.TestCase):
                 same_id, changed = store.observe_manifest_entry(
                     site_id="wymbot",
                     entry=entry(100),
-                    canonical_url="http://wymbot.wikidot.com/article:one",
+                    canonical_url="https://wymbot.wikidot.com/article:one",
                     inventory_id="scan-2",
                 )
                 self.assertEqual(same_id, page_id)
@@ -38,7 +38,7 @@ class StateTests(unittest.TestCase):
                 _, changed = store.observe_manifest_entry(
                     site_id="wymbot",
                     entry=entry(101, 2),
-                    canonical_url="http://wymbot.wikidot.com/article:one",
+                    canonical_url="https://wymbot.wikidot.com/article:one",
                     inventory_id="scan-3",
                 )
                 self.assertTrue(changed)
@@ -53,7 +53,7 @@ class StateTests(unittest.TestCase):
                 page_id, _ = store.observe_manifest_entry(
                     site_id="wymbot",
                     entry=entry(200),
-                    canonical_url="http://wymbot.wikidot.com/article:one",
+                    canonical_url="https://wymbot.wikidot.com/article:one",
                 )
                 self.assertFalse(store.mark_fetched(page_id, target=(199, 1), content_hash="old"))
                 self.assertEqual(store.queued_job_count("wymbot"), 1)
@@ -66,12 +66,12 @@ class StateTests(unittest.TestCase):
                 dependent_id, _ = store.observe_manifest_entry(
                     site_id="wymbot",
                     entry=entry(100, fullname="article:one"),
-                    canonical_url="http://wymbot.wikidot.com/article:one",
+                    canonical_url="https://wymbot.wikidot.com/article:one",
                 )
                 target_id, _ = store.observe_manifest_entry(
                     site_id="wymbot",
                     entry=entry(100, fullname="component:nav"),
-                    canonical_url="http://wymbot.wikidot.com/component:nav",
+                    canonical_url="https://wymbot.wikidot.com/component:nav",
                 )
                 store.mark_fetched(dependent_id, target=(100, 1), content_hash="dependent", dynamic_class="static")
                 store.mark_fetched(target_id, target=(100, 1), content_hash="target", dynamic_class="static")
@@ -80,7 +80,7 @@ class StateTests(unittest.TestCase):
                 store.observe_manifest_entry(
                     site_id="wymbot",
                     entry=entry(101, 2, fullname="component:nav"),
-                    canonical_url="http://wymbot.wikidot.com/component:nav",
+                    canonical_url="https://wymbot.wikidot.com/component:nav",
                 )
 
                 jobs = store.queued_jobs(limit=10, now=10**12)
