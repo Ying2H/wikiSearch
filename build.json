@@ -6,8 +6,8 @@
   "search_bundle_bytes": 69867,
   "build_config_hash": "d85ef42c9d5cfeae8ea8e45e018a5f5a53cd899e122a134f6a59943c898cb4d2",
   "site_id": "wymbot.wikidot.com",
-  "corpus_generation": 1619,
+  "corpus_generation": 1624,
   "record_count": 199,
-  "excluded_count": 3,
-  "manifest_hash": "ab916b653afa487a8e772fb4e184368619a0d2ecfcbdea011cead0af3bc85e26"
+  "excluded_count": 4,
+  "manifest_hash": "a989dbffa776c0c91ae5a81991bbd79d4c71e7e0f597f8c931d6cb704faf6dd7"
 }
