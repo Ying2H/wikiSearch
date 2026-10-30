@@ -24,11 +24,6 @@ if [[ ! -d "${PAGES_DIR}/.git" ]]; then
     git init --initial-branch=gh-pages "${PAGES_DIR}"
     git -C "${PAGES_DIR}" remote add "${REMOTE_NAME}" "${REMOTE_URL}"
 else
-    remote_status=$?
-    if [[ "${remote_status}" != "2" ]]; then
-        echo "Unable to query GitHub Pages branch; leaving local output untouched." >&2
-        exit "${remote_status}"
-    fi
     git -C "${PAGES_DIR}" remote set-url "${REMOTE_NAME}" "${REMOTE_URL}" 2>/dev/null || \
         git -C "${PAGES_DIR}" remote add "${REMOTE_NAME}" "${REMOTE_URL}"
 fi
@@ -37,6 +32,11 @@ if git ls-remote --exit-code --heads "${REMOTE_URL}" gh-pages >/dev/null 2>&1; t
     git -C "${PAGES_DIR}" fetch --depth=1 "${REMOTE_NAME}" gh-pages
     git -C "${PAGES_DIR}" checkout -B gh-pages "${REMOTE_NAME}/gh-pages"
 else
+    remote_status=$?
+    if [[ "${remote_status}" != "2" ]]; then
+        echo "Unable to query GitHub Pages branch; leaving local output untouched." >&2
+        exit "${remote_status}"
+    fi
     if git -C "${PAGES_DIR}" show-ref --verify --quiet refs/heads/gh-pages; then
         git -C "${PAGES_DIR}" checkout gh-pages
     else
