@@ -21,3 +21,23 @@ class ContentTests(unittest.TestCase):
             stable_record_hash({"title": "A", "content": "B"}),
             stable_record_hash({"content": "B", "title": "A"}),
         )
+
+    def test_void_tags_do_not_leak_footer_or_drop_following_text(self):
+        html = "<div id='page-content'>正文<br>下一行<img src='x'><p>末段</p></div><p>站外页脚</p>"
+        self.assertEqual(extract_main_content(html), "正文\n下一行\n末段")
+
+    def test_forum_controls_change_language_without_changing_content(self):
+        template = """<div id='page-content'><p>正文</p><div class='comments-box'>
+          <div id='comments-options-hidden'>{show}</div><div class='post'><div class='content'>用户评论</div>
+          <a href='javascript:;' onclick='WIKIDOT.modules.ForumViewThreadModule.listeners.editPost()'>{edit}</a></div>
+          <a id='new-post-button'>{new}</a><div id='post-options-template'>{edit}</div></div></div>"""
+        english = extract_main_content(template.format(show='Show Comments', edit='Edit', new='Add a New Comment'))
+        chinese = extract_main_content(template.format(show='显示评论', edit='编辑', new='新回复'))
+        self.assertEqual(english, chinese)
+        self.assertIn('用户评论', english)
+        self.assertNotIn('Edit', english)
+
+    def test_wikidot_timestamp_uses_epoch_instead_of_relative_label(self):
+        template = "<div id='page-content'>更新于 <span class='odate time_1793115109'>{}</span></div>"
+        self.assertEqual(extract_main_content(template.format('3 days ago')), extract_main_content(template.format('4天前')))
+        self.assertNotEqual(extract_main_content(template.format('3 days ago')), extract_main_content(template.replace('1793115109', '1793115110').format('3 days ago')))

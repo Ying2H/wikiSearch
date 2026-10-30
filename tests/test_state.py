@@ -12,6 +12,16 @@ def entry(updated: int, revisions: int = 1, fullname: str = "article:one") -> Ma
 
 
 class StateTests(unittest.TestCase):
+    def test_metadata_change_without_revision_enqueues_refetch(self):
+        with StateStore(':memory:') as store:
+            row_id, _ = store.observe_manifest_entry(site_id='wymbot', entry=entry(100), canonical_url='http://example/article:one')
+            store.mark_fetched(row_id, target=(100, 1), content_hash='old')
+            _, changed = store.observe_manifest_entry(
+                site_id='wymbot', entry=ManifestEntry('article:one', '新标题', 100, 1), canonical_url='https://example/article:one',
+            )
+            self.assertTrue(changed)
+            self.assertEqual(store.queued_job_count('wymbot'), 1)
+
     def test_observation_and_enqueue_are_idempotent(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             with StateStore(Path(temp_dir) / "state.sqlite3") as store:

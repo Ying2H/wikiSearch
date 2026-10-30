@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from search_sync.extract.content import stable_record_hash
+from search_sync.extract.content import search_document, stable_record_hash
 from search_sync.sync.cache import page_cache_dir
 from search_sync.sync.state import StateStore
 
@@ -65,6 +65,7 @@ class RecordSnapshotter:
         staged = output.parent / f"{output.name}.staged-{uuid.uuid4().hex}"
         manifest_entries: list[dict[str, Any]] = []
         excluded_entries: list[dict[str, Any]] = []
+        search_documents: list[dict[str, str]] = []
         try:
             staged.mkdir(parents=True, exist_ok=False)
             records_dir = staged / "records"
@@ -93,6 +94,7 @@ class RecordSnapshotter:
                 destination = records_dir / f"{len(manifest_entries) + 1:08d}" / "record.json"
                 destination.parent.mkdir(parents=True)
                 shutil.copyfile(record_path, destination)
+                search_documents.append(search_document(record))
                 manifest_entries.append(
                     {
                         "page_row_id": int(row["id"]),
@@ -109,8 +111,7 @@ class RecordSnapshotter:
                 "excluded": excluded_entries,
                 "records": manifest_entries,
             }
-            hash_payload = dict(manifest_payload)
-            hash_payload.pop("corpus_generation", None)
+            hash_payload = {"site_id": site_id, "documents": sorted(search_documents, key=lambda item: item["id"])}
             manifest_hash = hashlib.sha256(
                 json.dumps(hash_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
             ).hexdigest()

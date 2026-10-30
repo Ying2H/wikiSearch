@@ -172,6 +172,9 @@ class StateStore:
                     row["observed_updated_at"],
                     row["observed_revisions"],
                 ) != (observed_updated, observed_revisions)
+                changed = changed or (row["title"], row["category"], row["canonical_url"]) != (
+                    entry.title, entry.category, canonical_url,
+                )
                 reasons = ["manifest_changed"] if changed else []
                 self.db.execute(
                     """

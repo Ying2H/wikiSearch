@@ -1,11 +1,14 @@
 import tempfile
 import unittest
+import json
 from pathlib import Path
 
 from search_sync.models import ManifestEntry, RenderedPage, SourcePage
 from search_sync.sync.snapshot import RecordSnapshotter, SnapshotError
 from search_sync.sync.state import StateStore
 from search_sync.sync.worker import FetchWorker
+from search_sync.sync.cache import page_cache_dir
+from search_sync.extract.content import stable_record_hash
 
 
 class FakeSite:
@@ -47,6 +50,19 @@ class SnapshotTests(unittest.TestCase):
                 )
                 self.assertEqual(second.generation, 2)
                 self.assertEqual(snapshot.manifest_hash, second.manifest_hash)
+
+                record_path = page_cache_dir(root / 'cache', 'example', 'article:one') / 'record.json'
+                record = json.loads(record_path.read_text(encoding='utf-8'))
+                record['sort']['updated'] = '200'
+                record_path.write_text(json.dumps(record), encoding='utf-8')
+                store.mark_fetched(row_id, target=(100, 1), content_hash=stable_record_hash(record))
+                metadata_only = RecordSnapshotter(store, cache_dir=root / 'cache').export(site_id='example', output_dir=root / 'snapshot-3')
+                self.assertEqual(snapshot.manifest_hash, metadata_only.manifest_hash)
+                record['content'] += '实质更新'
+                record_path.write_text(json.dumps(record), encoding='utf-8')
+                store.mark_fetched(row_id, target=(100, 1), content_hash=stable_record_hash(record))
+                changed = RecordSnapshotter(store, cache_dir=root / 'cache').export(site_id='example', output_dir=root / 'snapshot-4')
+                self.assertNotEqual(snapshot.manifest_hash, changed.manifest_hash)
 
     def test_snapshot_excludes_empty_content_with_reason(self):
         class EmptySite(FakeSite):

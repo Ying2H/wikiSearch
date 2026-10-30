@@ -103,7 +103,10 @@ NEW_BUILD_CONFIG_HASH="$(${PYTHON_BIN} -c 'import hashlib,pathlib,sys; h=hashlib
 if [[ -f "${SITE_DIR}/build.json" ]]; then
     OLD_SIGNATURE="$(${PYTHON_BIN} -c 'import json,sys; p=json.load(open(sys.argv[1], encoding="utf-8")); print(":".join(str(p.get(k, "")) for k in ("manifest_hash", "entrypoint_hash", "build_config_hash")))' "${SITE_DIR}/build.json")"
     if [[ "${OLD_SIGNATURE}" == "${NEW_MANIFEST_HASH}:${NEW_ENTRYPOINT_HASH}:${NEW_BUILD_CONFIG_HASH}" ]]; then
-        echo "Corpus, entrypoint, and Orama build inputs are unchanged; skip rebuild and GitHub Pages push."
+        echo "Search documents and build inputs are unchanged; skip rebuild."
+        if [[ "${PUBLISH}" == "1" ]]; then
+            scripts/publish_github_pages.sh "${SITE_DIR}"
+        fi
         exit 0
     fi
 fi

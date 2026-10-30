@@ -24,6 +24,11 @@ if [[ ! -d "${PAGES_DIR}/.git" ]]; then
     git init --initial-branch=gh-pages "${PAGES_DIR}"
     git -C "${PAGES_DIR}" remote add "${REMOTE_NAME}" "${REMOTE_URL}"
 else
+    remote_status=$?
+    if [[ "${remote_status}" != "2" ]]; then
+        echo "Unable to query GitHub Pages branch; leaving local output untouched." >&2
+        exit "${remote_status}"
+    fi
     git -C "${PAGES_DIR}" remote set-url "${REMOTE_NAME}" "${REMOTE_URL}" 2>/dev/null || \
         git -C "${PAGES_DIR}" remote add "${REMOTE_NAME}" "${REMOTE_URL}"
 fi
@@ -37,8 +42,6 @@ else
     else
         git -C "${PAGES_DIR}" checkout --orphan gh-pages
     fi
-    git -C "${PAGES_DIR}" rm -rf . >/dev/null 2>&1 || true
-    git -C "${PAGES_DIR}" clean -fdx >/dev/null 2>&1 || true
 fi
 
 cp -a "${SITE_DIR}"/. "${PAGES_DIR}"/

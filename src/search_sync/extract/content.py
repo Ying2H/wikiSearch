@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from typing import Any, Mapping
 
@@ -34,8 +35,12 @@ BLOCK_TAGS = {
     "ul",
 }
 SKIP_TAGS = {"iframe", "noscript", "script", "style", "svg"}
-SKIP_IDS = {"action-area", "footer", "page-info-break", "page-options-container", "side-bar"}
+SKIP_IDS = {
+    "action-area", "footer", "page-info-break", "page-options-container", "side-bar",
+    "comments-options-hidden", "comments-options", "new-post-button", "post-options-template",
+}
 SKIP_CLASSES = {"license-area", "page-options-bottom", "pager"}
+VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
 
 
 def _attrs(attrs: list[tuple[str, str | None]]) -> dict[str, str]:
@@ -61,17 +66,35 @@ class _MainContentParser(HTMLParser):
         if tag == "div" and values.get("id") == "page-content" and self.main_depth is None:
             self.main_depth = depth
         if self.main_depth is not None and not self.skipped:
-            if tag in SKIP_TAGS or values.get("id") in SKIP_IDS or classes & SKIP_CLASSES:
+            forum_control = tag == "a" and "WIKIDOT.modules.Forum" in values.get("onclick", "")
+            timestamp = next((item[5:] for item in classes if re.fullmatch(r"time_\d+", item)), None)
+            if "odate" in classes and timestamp is not None:
+                self.parts.append(datetime.fromtimestamp(int(timestamp), timezone.utc).isoformat())
+                self.skip_depths.append(depth)
+            elif tag in SKIP_TAGS or values.get("id") in SKIP_IDS or classes & SKIP_CLASSES or forum_control:
                 self.skip_depths.append(depth)
             elif tag in BLOCK_TAGS or tag == "br":
                 self.parts.append("\n")
-        self.stack.append(tag)
+        if tag not in VOID_TAGS:
+            self.stack.append(tag)
+        elif self.skip_depths and self.skip_depths[-1] == depth:
+            self.skip_depths.pop()
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.handle_starttag(tag, attrs)
+        if tag not in VOID_TAGS:
+            self.handle_endtag(tag)
 
     def handle_data(self, data: str) -> None:
         if self.main_depth is not None and not self.skipped:
             self.parts.append(data)
 
     def handle_endtag(self, tag: str) -> None:
+        if tag not in self.stack:
+            return
+        # Void elements never enter the stack; close matching ancestors on malformed HTML.
+        while self.stack and self.stack[-1] != tag:
+            self.handle_endtag(self.stack[-1])
         depth = len(self.stack)
         if self.main_depth is not None and not self.skipped and tag in BLOCK_TAGS:
             self.parts.append("\n")
@@ -101,3 +124,18 @@ def extract_main_content(rendered_html: str) -> str:
 def stable_record_hash(record: Mapping[str, Any]) -> str:
     payload = json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def search_document(record: Mapping[str, Any]) -> dict[str, str]:
+    """The fields actually consumed by builder/build.mjs, excluding crawl metadata."""
+    meta = record.get("meta") or {}
+    filters = record.get("filters") or {}
+    return {
+        "id": record["url"],
+        "url": record["url"],
+        "title": meta.get("title", ""),
+        "fullname": meta.get("fullname", ""),
+        "category": meta.get("category", ""),
+        "page_type": " ".join(filters.get("page_type", [])),
+        "content": record["content"],
+    }
