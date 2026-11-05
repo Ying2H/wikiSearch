@@ -44,6 +44,14 @@ else
     fi
 fi
 
+if [[ -f "${SITE_DIR}/orama/search-index.json" ]] && ! cmp -s "${SITE_DIR}/orama/search-index.json" "${PAGES_DIR}/orama/search-index.json"; then
+    "${PYTHON_BIN:-${ROOT_DIR}/.venv/bin/python}" "${ROOT_DIR}/scripts/describe_index_changes.py" \
+        --previous "${PAGES_DIR}/orama/search-index.json" \
+        --current "${SITE_DIR}/orama/search-index.json" > "${ROOT_DIR}/data/last-publish-diff.json"
+    echo "Search document changes (before push):"
+    cat "${ROOT_DIR}/data/last-publish-diff.json"
+fi
+
 cp -a "${SITE_DIR}"/. "${PAGES_DIR}"/
 git -C "${PAGES_DIR}" config user.name "${GIT_NAME}"
 git -C "${PAGES_DIR}" config user.email "${GIT_EMAIL}"

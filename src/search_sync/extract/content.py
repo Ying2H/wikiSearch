@@ -39,7 +39,7 @@ SKIP_IDS = {
     "action-area", "footer", "page-info-break", "page-options-container", "side-bar",
     "comments-options-hidden", "comments-options", "new-post-button", "post-options-template",
 }
-SKIP_CLASSES = {"license-area", "page-options-bottom", "pager"}
+SKIP_CLASSES = {"license-area", "page-options-bottom", "pager", "error-block"}
 VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
 
 
@@ -54,6 +54,7 @@ class _MainContentParser(HTMLParser):
         self.main_depth: int | None = None
         self.skip_depths: list[int] = []
         self.parts: list[str] = []
+        self.forum_recent_depths: list[int] = []
 
     @property
     def skipped(self) -> bool:
@@ -63,15 +64,18 @@ class _MainContentParser(HTMLParser):
         depth = len(self.stack) + 1
         values = _attrs(attrs)
         classes = set(values.get("class", "").split())
+        if "forum-recent-posts-box" in classes:
+            self.forum_recent_depths.append(depth)
         if tag == "div" and values.get("id") == "page-content" and self.main_depth is None:
             self.main_depth = depth
         if self.main_depth is not None and not self.skipped:
             forum_control = tag == "a" and "WIKIDOT.modules.Forum" in values.get("onclick", "")
+            forum_filter = tag == "form" and bool(self.forum_recent_depths)
             timestamp = next((item[5:] for item in classes if re.fullmatch(r"time_\d+", item)), None)
             if "odate" in classes and timestamp is not None:
                 self.parts.append(datetime.fromtimestamp(int(timestamp), timezone.utc).isoformat())
                 self.skip_depths.append(depth)
-            elif tag in SKIP_TAGS or values.get("id") in SKIP_IDS or classes & SKIP_CLASSES or forum_control:
+            elif tag in SKIP_TAGS or values.get("id") in SKIP_IDS or classes & SKIP_CLASSES or forum_control or forum_filter:
                 self.skip_depths.append(depth)
             elif tag in BLOCK_TAGS or tag == "br":
                 self.parts.append("\n")
@@ -102,6 +106,8 @@ class _MainContentParser(HTMLParser):
             self.skip_depths.pop()
         if self.main_depth == depth:
             self.main_depth = None
+        if self.forum_recent_depths and self.forum_recent_depths[-1] == depth:
+            self.forum_recent_depths.pop()
         if self.stack:
             self.stack.pop()
 

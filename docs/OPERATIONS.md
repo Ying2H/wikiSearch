@@ -163,9 +163,18 @@ sudo systemctl start wymbot-search-sync.timer
 
 正文提取会排除评论操作按钮和隐藏操作模板，保留用户评论；Wikidot `odate time_…` 时间标签按固定 UTC 时间表示，避免语言或“几天前”等相对显示造成差异。正文中真实变化的日期、计数或 ListPages 内容仍会正常进入搜索并触发发布。
 
+Wikidot 模块的 `error-block` 错误提示及 RecentPosts 模块的分类筛选表单也不会进入正文。真实回复和作者编写的普通表单仍保留；只包含系统提示的页面按空正文排除，后续出现有效正文时会重新进入索引。
+
 即使构建输入未变，`--publish` 仍会检查发布目录与远程 `gh-pages` 的差异，以便重试上次失败的推送或发布先前通过 `--no-publish` 生成的站点。文件相同时不会创建提交，也不会触发 GitHub Pages 构建。
 
 ## 日志和故障定位
+
+索引文件变化时，发布脚本会在推送前记录新增、移除、修改页面及变化字段，并输出正文差异片段（最多 40 行）。最新一次报告位于服务器 `data/last-publish-diff.json`，不上传到静态站点；历史报告可在服务日志中查看。报告描述待推送的差异，是否成功发布需结合其后的 Git 推送结果确认。
+
+```bash
+cat /root/code/wymboTSearch/data/last-publish-diff.json
+journalctl -u wymbot-search-sync.service --since '2026-11-05' --no-pager
+```
 
 查看最近日志：
 

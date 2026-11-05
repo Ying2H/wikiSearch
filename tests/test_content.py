@@ -5,6 +5,24 @@ from search_sync.extract.content import extract_main_content, stable_record_hash
 
 
 class ContentTests(unittest.TestCase):
+    def test_module_errors_are_not_article_content(self):
+        template = "<div id='page-content'><p>正文</p><div class='series'><div class='error-block'>{}</div></div><p>后续正文</p></div>"
+        english = extract_main_content(template.format('Parent page hqsbg:{$hqsbgroup} does not exist'))
+        chinese = extract_main_content(template.format('父页面 hqsbg:{$hqsbgroup} 不存在'))
+        self.assertEqual(english, chinese)
+        self.assertEqual(english, '正文\n\n后续正文')
+
+    def test_recent_posts_filter_is_ignored_but_posts_and_other_forms_remain(self):
+        template = """<div id='page-content'><div class='forum-recent-posts-box'>
+        <form><table><tr><td>{}</td><td><select><option>{}</option></select><input type='button'></td></tr></table></form>
+        <div id='forum-recent-posts-list'><p>真实回复内容</p></div></div>
+        <form><p>作者编写的表单说明</p></form></div>"""
+        english = extract_main_content(template.format('From categories:', 'All categories'))
+        chinese = extract_main_content(template.format('来自分类:', '全部分类'))
+        self.assertEqual(english, chinese)
+        self.assertIn('真实回复内容', english)
+        self.assertIn('作者编写的表单说明', english)
+
     def test_content_extractor_removes_chrome_but_keeps_text(self):
         html = (Path(__file__).parent / "fixtures" / "rendered.html").read_text(encoding="utf-8")
         content = extract_main_content(html)
